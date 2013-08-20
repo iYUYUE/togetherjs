@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"], function ($, util, session, elementFinder, eventMaker, templating) {
+define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating", "bully"], function ($, util, session, elementFinder, eventMaker, templating, bully) {
   var forms = util.Module("forms");
   var assert = util.assert;
 
@@ -352,13 +352,11 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
   });
 
-  var initSent = false;
-
   function sendInit() {
-    initSent = true;
     var msg = {
       type: "form-init",
       pageAge: Date.now() - TowTruck.pageLoaded,
+      leader: bully.currentLeader || session.clientId,
       updates: []
     };
     var els = $("textarea, input, select");
@@ -443,17 +441,15 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     if (! msg.sameUrl) {
       return;
     }
-    if (initSent) {
-      // In a 3+-peer situation more than one client may init; in this case
-      // we're probably the other peer, and not the peer that needs the init
-      // A quick check to see if we should init...
-      var myAge = Date.now() - TowTruck.pageLoaded;
-      if (msg.pageAge < myAge) {
-        // We've been around longer than the other person...
-        return;
-      }
+    // only accept inits from the leader.
+    if (bully.currentLeader===null || bully.currentLeader < msg.leader) {
+      bully.setLeader(msg.leader);
     }
-    // FIXME: need to figure out when to ignore inits
+    if (msg.leader !== bully.currentLeader) {
+      // ignore; this isn't an init from the leader
+      return;
+    }
+    console.log("applying form values");
     msg.updates.forEach(function (update) {
       var el = elementFinder.findElement(update.element);
       if (update.tracker) {
@@ -538,6 +534,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     $(document).on("textInput keydown keyup cut paste", maybeChange);
     $(document).on("focusin", focus);
     $(document).on("focusout", blur);
+    bully.holdElectionLazy();
   });
 
   session.on("close", function () {
@@ -548,7 +545,16 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
   });
 
   session.hub.on("hello", function (msg) {
-    if (msg.sameUrl) {
+    if (msg.sameUrl && bully.amLeader()) {
+      setTimeout(sendInit);
+    }
+  });
+
+  session.on("leader", function() {
+    console.log("The leader is", bully.currentLeader);
+    if (bully.amLeader()) {
+      console.log("THAT'S ME!");
+      // i'm the leader!
       setTimeout(sendInit);
     }
   });
