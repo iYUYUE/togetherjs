@@ -1,0 +1,21 @@
+# AppFog.com configuration for towtruck
+# (useful if you want to deploy your own towtruck instance in the cloud)
+# NOTE that appfog does not currently support websocket servers :(
+# use http://modulus.io instead, or wait for:
+# http://feedback.appfog.com/forums/171983-appfog/suggestions/3543100-add-websocket-support-to-node-js
+---
+applications:
+  .:
+    name: towtruck
+    framework:
+      name: standalone
+      info:
+        mem: 64M
+        description: Standalone Application
+        exec:
+    runtime: node08
+    command: npm run start
+    infra: aws
+    url:
+    mem: 1G
+    instances: 1
