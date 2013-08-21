@@ -140,7 +140,8 @@ wsServer.on('request', function(request) {
 });
 
 if (require.main == module) {
-  startServer(process.env.HUB_SERVER_PORT || 8080, process.env.HOST || '127.0.0.1');
+  startServer(process.env.HUB_SERVER_PORT || process.env.VCAP_APP_PORT || 8080,
+              process.env.HOST || process.env.VCAP_APP_HOST || '127.0.0.1');
 }
 
 exports.startServer = startServer;
