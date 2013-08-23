@@ -1712,13 +1712,11 @@ define('session',["require", "util", "channels", "jquery", "storage"], function 
   });
 
   function processFirstHello(msg) {
-    console.log("got first hello", msg.sameUrl);
     if (! msg.sameUrl) {
       var url = msg.url;
       if (msg.urlHash) {
         url += msg.urlHash;
       }
-      console.log("going to new url", url);
       require("ui").showUrlChangeMessage(msg.peer, url);
       location.href = url;
     }
@@ -1763,6 +1761,17 @@ define('session',["require", "util", "channels", "jquery", "storage"], function 
   // via define().
   // ui must be the first item:
   var features = ["peers", "ui", "chat", "webrtc", "cursor", "startup", "forms", "visibilityApi"];
+
+  function getRoomName(prefix, maxSize) {
+    var findRoom = TowTruck.getConfig("hubBase").replace(/\/*$/, "") + "/findroom";
+    return $.ajax({
+      url: findRoom,
+      dataType: "json",
+      data: {prefix: prefix, max: maxSize}
+    }).then(function (resp) {
+      return resp.name;
+    });
+  }
 
   function initIdentityId() {
     return util.Deferred(function (def) {
@@ -1812,7 +1821,23 @@ define('session',["require", "util", "channels", "jquery", "storage"], function 
         }
       }
       return storage.tab.get("status").then(function (saved) {
-        if (TowTruck.startup._launch) {
+        var findRoom = TowTruck.getConfig("findRoom");
+        if (findRoom && ! saved) {
+          assert(findRoom.prefix && typeof findRoom.prefix == "string", "Bad findRoom.prefix", findRoom);
+          assert(findRoom.max && typeof findRoom.max == "number" && findRoom.max > 0,
+                 "Bad findRoom.max", findRoom);
+          sessionId = util.generateId();
+          getRoomName(findRoom.prefix, findRoom.max).then(function (shareId) {
+            // FIXME: duplicates code below:
+            session.clientId = session.identityId + "." + sessionId;
+            storage.tab.set("status", {reason: "joined", shareId: shareId, running: true, date: Date.now(), sessionId: sessionId});
+            session.isClient = true;
+            session.shareId = shareId;
+            session.emit("shareId");
+            def.resolve(session.shareId);
+          });
+          return;
+        } else if (TowTruck.startup._launch) {
           if (saved) {
             isClient = saved.reason == "joined";
             if (! shareId) {
@@ -6937,6 +6962,10 @@ define('startup',["util", "require", "jquery", "windowing", "storage"], function
         next();
         return;
       }
+      if (TowTruck.getConfig("suppressJoinConfirmation")) {
+        next();
+        return;
+      }
       var cancelled = false;
       windowing.show("#towtruck-intro", {
         onClose: function () {
@@ -7184,73 +7213,142 @@ define('ot',["util"], function (util) {
     }
   });
 
+  /* SimpleHistory synchronizes peers by relying on the server to serialize
+   * the order of all updates.  Each client maintains a queue of patches
+   * which have not yet been 'committed' (by being echoed back from the
+   * server).  The client is responsible for transposing its own queue
+   * if 'earlier' patches are heard from the server.
+   *
+   * Let's say that A's edit "1" and B's edit "2" occur and get put in
+   * their respective SimpleHistory queues.  The server happens to
+   * handle 1 first, then 2, so those are the order that all peers
+   * (both A and B) see the messages.
+   *
+   * A sees 1, and has 1 on its queue, so everything's fine. It
+   * updates the 'committed' text to match its current text and drops
+   * the patch from its queue. It then sees 2, but the basis number
+   * for 2 no longer matches the committed basis, so it throws it
+   * away.
+   *
+   * B sees 1, and has 2 on its queue. It does the OT transpose thing,
+   * updating the committed text to include 1 and the 'current' text
+   * to include 1+2. It updates its queue with the newly transposed
+   * version of 2 (call it 2prime) and updates 2prime's basis
+   * number. It them resends 2prime to the server. It then receives 2
+   * (the original) but the basis number no longer matches the
+   * committed basis, so it throws it away.
+   *
+   * Now the server sees 2prime and rebroadcasts it to both A and B.
+   *
+   * A is seeing it for the first time, and the basis number matches,
+   * so it applies it to the current and committed text.
+   *
+   * B sees that 2prime matches what's on the start of its queue,
+   * shifts it off, and updates the committed text to match the
+   * current text.
+   *
+   * Note that no one tries to keep an entire history of changes,
+   * which is the main difference with ot.History.  Everyone applies
+   * the same patches in the same order.
+   */
   ot.SimpleHistory = util.Class({
-    constructor: function(clientId, initState, initVersion) {
+
+    constructor: function(clientId, initState, initBasis) {
       this.clientId = clientId;
       this.committed = initState;
       this.current = initState;
-      this.version = initVersion;
+      this.basis = initBasis;
       this.queue = [];
       this.deltaId = 1;
       this.selection = null;
     },
+
+    // Use a fake change to represent the selection.
+    // (This is the only bit that hard codes ot.TextReplace as the delta
+    // representation; override this in a subclass (or don't set the
+    // selection) if you are using a different delta representation.
     setSelection: function(selection) {
       if (selection) {
-        // use a fake change to represent the selection
         this.selection = ot.TextReplace(selection[0],
                                         selection[1] - selection[0], '@');
       } else {
         this.selection = null;
       }
     },
+
+    // Decode the fake change to reconstruct the updated selection.
     getSelection: function() {
       if (!this.selection) { return null; }
-      // decode the fake change
       return [this.selection.start, this.selection.start + this.selection.del];
     },
+
+    // Add this delta to this client's queue.
     add: function(delta) {
-      delta.id = this.clientId + '.' + (this.deltaId++);
-      if (!this.queue.length) { delta.version = this.version; }
-      this.queue.push(delta);
+      var change = {
+        id: this.clientId + '.' + (this.deltaId++),
+        delta: delta
+      };
+      if (!this.queue.length) { change.basis = this.basis; }
+      this.queue.push(change);
       this.current = delta.apply(this.current);
-      return !!delta.version;
+      return !!change.basis;
     },
-    commit: function(delta) {
-      // ignore it if the version doesn't match (this patch doesn't apply)
-      if (delta.version !== this.version) {
-        return false; // no need to update buffer
+
+    // Apply a delta received from the server.
+    // Return true iff the current text changed as a result.
+    commit: function(change) {
+
+      // ignore it if the basis doesn't match (this patch doesn't apply)
+      // if so, this delta is out of order; we expect the original client
+      // to retransmit an updated delta.
+      if (change.basis !== this.basis) {
+        return false; // 'current' text did not change
       }
+
       // is this the first thing on the queue?
-      if (this.queue.length && this.queue[0].id === delta.id) {
-        assert(delta.version === this.queue[0].version);
+      if (this.queue.length && this.queue[0].id === change.id) {
+        assert(change.basis === this.queue[0].basis);
         // good, apply this to commit state & remove it from queue
-        this.committed = this.queue.shift().apply(this.committed);
-        this.version++;
-        if (this.queue.length) { this.queue[0].version = this.version; }
-        return false; // no need to update buffer
+        this.committed = this.queue.shift().delta.apply(this.committed);
+        this.basis++;
+        if (this.queue.length) { this.queue[0].basis = this.basis; }
+        return false; // 'current' text did not change
       }
+
       // Transpose all bits on the queue to put this patch first.
-      delta = ot.TextReplace(delta.start, delta.del, delta.text);
-      var inserted = delta;
-      this.queue = this.queue.map(function(qdelta) {
-        var tt = qdelta.transpose(inserted);
+      var inserted = change.delta;
+      this.queue = this.queue.map(function(qchange) {
+        var tt = qchange.delta.transpose(inserted);
         inserted = tt[1];
-        tt[0].id = qdelta.id;
-        assert(!tt[0].sent);
-        return tt[0];
+        return {
+          id: qchange.id,
+          delta: tt[0]
+        };
       });
       if (this.selection) {
         // update the selection!
         this.selection = this.selection.transpose(inserted)[0];
       }
-      this.committed = delta.apply(this.committed);
-      this.version++;
-      if (this.queue.length) { this.queue[0].version = this.version; }
+      this.committed = change.delta.apply(this.committed);
+      this.basis++;
+      if (this.queue.length) { this.queue[0].basis = this.basis; }
+      // Update current by replaying queued changed starting from 'committed'
       this.current = this.committed;
-      this.queue.forEach(function(qdelta) {
-        this.current = qdelta.apply(this.current);
+      this.queue.forEach(function(qchange) {
+        this.current = qchange.delta.apply(this.current);
       }.bind(this));
-      return true; // need to update buffer & retransmit patch
+      return true; // The 'current' text changed.
+    },
+
+    // Return the next change to transmit to the server, or null if there
+    // isn't one.
+    getNextToSend: function() {
+      var qchange = this.queue[0];
+      if (!qchange) { return null; /* nothing to send */ }
+      if (qchange.sent) { return null; /* already sent */ }
+      assert(qchange.basis);
+      qchange.sent = true;
+      return qchange;
     }
   });
 
@@ -7609,6 +7707,31 @@ define('ot',["util"], function (util) {
     },
 
     classMethods: {
+
+      /* Make a new ot.TextReplace that converts oldValue to newValue. */
+      fromChange: function(oldValue, newValue) {
+        assert(typeof oldValue == "string");
+        assert(typeof newValue == "string");
+        var commonStart = 0;
+        while (commonStart < newValue.length &&
+               newValue.charAt(commonStart) == oldValue.charAt(commonStart)) {
+          commonStart++;
+        }
+        var commonEnd = 0;
+        while (commonEnd < (newValue.length - commonStart) &&
+               commonEnd < (oldValue.length - commonStart) &&
+               newValue.charAt(newValue.length - commonEnd - 1) ==
+               oldValue.charAt(oldValue.length - commonEnd - 1)) {
+          commonEnd++;
+        }
+        var removed = oldValue.substr(commonStart, oldValue.length - commonStart - commonEnd);
+        var inserted = newValue.substr(commonStart, newValue.length - commonStart - commonEnd);
+        if (! (removed.length || inserted)) {
+          return null;
+        }
+        return this(commonStart, removed.length, inserted);
+      },
+
       random: function (source, generator) {
         var text, start, len;
         var ops = ["ins", "del", "repl"];
@@ -7702,7 +7825,7 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
         return;
       }
       if (history) {
-        var delta = makeDiff(history.current, value);
+        var delta = ot.TextReplace.fromChange(history.current, value);
         assert(delta);
         history.add(delta);
         return maybeSendUpdate(msg.element, history);
@@ -7711,7 +7834,7 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
           console.warn("No previous known value on field", el[0]);
         }
         msg.value = value;
-        msg.version = 1;
+        msg.basis = 1;
         el.data("towtruckHistory", ot.SimpleHistory(session.clientId, value, 1));
       }
     } else {
@@ -7732,6 +7855,24 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
   var editTrackers = {};
   var liveTrackers = [];
 
+  TowTruck.addTracker = function (TrackerClass, skipSetInit) {
+    assert(typeof TrackerClass === "function", "You must pass in a class");
+    assert(typeof TrackerClass.prototype.trackerName === "string",
+           "Needs a .prototype.trackerName string");
+    // Test for required instance methods.
+    "destroy update init makeInit tracked".split(/ /).forEach(function(m) {
+      assert(typeof TrackerClass.prototype[m] === "function",
+             "Missing required tracker method: "+m);
+    });
+    // Test for required class methods.
+    "scan tracked".split(/ /).forEach(function(m) {
+      assert(typeof TrackerClass[m] === "function",
+             "Missing required tracker class method: "+m);
+    });
+    editTrackers[TrackerClass.prototype.trackerName] = TrackerClass;
+    if (!skipSetInit) { setInit(); }
+  };
+
   var AceEditor = util.Class({
 
     trackerName: "AceEditor",
@@ -7741,6 +7882,10 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
       assert(this.element.hasClass("ace_editor"));
       this._change = this._change.bind(this);
       this._editor().document.on("change", this._change);
+    },
+
+    tracked: function (el) {
+      return this.element[0] === el;
     },
 
     destroy: function (el) {
@@ -7792,7 +7937,7 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
     return !! $(el).closest(".ace_editor").length;
   };
 
-  editTrackers[AceEditor.prototype.trackerName] = AceEditor;
+  TowTruck.addTracker(AceEditor, true /* skip setInit */);
 
   var CodeMirrorEditor = util.Class({
     trackerName: "CodeMirrorEditor",
@@ -7802,6 +7947,10 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
       assert(this.element[0].CodeMirror);
       this._change = this._change.bind(this);
       this._editor().on("change", this._change);
+    },
+
+    tracked: function (el) {
+      return this.element[0] === el;
     },
 
     destroy: function (el) {
@@ -7874,7 +8023,7 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
     return false;
   };
 
-  editTrackers[CodeMirrorEditor.prototype.trackerName] = CodeMirrorEditor;
+  TowTruck.addTracker(CodeMirrorEditor, true /* skip setInit */);
 
   function buildTrackers() {
     assert(! liveTrackers.length);
@@ -7907,7 +8056,7 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
     el = $(el)[0];
     for (var i=0; i<liveTrackers.length; i++) {
       var tracker = liveTrackers[i];
-      if (tracker.element[0] == el) {
+      if (tracker.tracked(el)) {
         assert((! name) || name == tracker.trackerName, "Expected to map to a tracker type", name, "but got", tracker.trackerName);
         return tracker;
       }
@@ -7951,22 +8100,22 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
     eventMaker.fireChange(el);
   }
 
+  /* Send the top of this history queue, if it hasn't been already sent. */
   function maybeSendUpdate(element, history) {
-    var qdelta = history.queue[0];
-    if (!qdelta) { return; /* nothing to send */ }
-    if (qdelta.sent) { return; /* already sent */ }
-    assert(qdelta.version);
-    qdelta.sent = true;
+    var change = history.getNextToSend();
+    if (!change) { return; /* nothing to send */ }
     var msg = {
       type: "form-update",
       element: element,
-      "server-echo": session.clientId,
+      "server-echo": true,
       replace: {
-        id: qdelta.id,
-        version: qdelta.version,
-        start: qdelta.start,
-        del: qdelta.del,
-        text: qdelta.text
+        id: change.id,
+        basis: change.basis,
+        delta: {
+          start: change.delta.start,
+          del: change.delta.del,
+          text: change.delta.text
+        }
       }
     };
     session.send(msg);
@@ -7996,7 +8145,16 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
     var value;
     if (msg.replace) {
       var history = el.data("towtruckHistory");
+      if (!history) {
+        console.warn("form update received for uninitialized form element");
+        return;
+      }
       history.setSelection(selection);
+      // make a real TextReplace object.
+      msg.replace.delta = ot.TextReplace(msg.replace.delta.start,
+                                         msg.replace.delta.del,
+                                         msg.replace.delta.text);
+      // apply this change to the history
       var changed = history.commit(msg.replace);
       maybeSendUpdate(msg.element, history);
       if (!changed) { return; }
@@ -8041,14 +8199,14 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
         var history = el.data("towtruckHistory");
         if (history) {
           upd.value = history.committed;
-          upd.version = history.version;
+          upd.basis = history.basis;
         }
       }
       msg.updates.push(upd);
     });
     liveTrackers.forEach(function (tracker) {
       var init = tracker.makeInit();
-      assert(elementFinder.findElement(init.element) == tracker.element[0]);
+      assert(tracker.tracked(elementFinder.findElement(init.element)));
       msg.updates.push(init);
     });
     if (msg.updates.length) {
@@ -8076,29 +8234,6 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
   session.on("reinitialize", setInit);
 
   session.on("ui-ready", setInit);
-
-  function makeDiff(oldValue, newValue) {
-    assert(typeof oldValue == "string");
-    assert(typeof newValue == "string");
-    var commonStart = 0;
-    while (commonStart < newValue.length &&
-           newValue.charAt(commonStart) == oldValue.charAt(commonStart)) {
-      commonStart++;
-    }
-    var commonEnd = 0;
-    while (commonEnd < (newValue.length - commonStart) &&
-           commonEnd < (oldValue.length - commonStart) &&
-           newValue.charAt(newValue.length - commonEnd - 1) ==
-             oldValue.charAt(oldValue.length - commonEnd - 1)) {
-      commonEnd++;
-    }
-    var removed = oldValue.substr(commonStart, oldValue.length - commonStart - commonEnd);
-    var inserted = newValue.substr(commonStart, newValue.length - commonStart - commonEnd);
-    if (! (removed.length || inserted)) {
-      return null;
-    }
-    return ot.TextReplace(commonStart, removed.length, inserted);
-  }
 
   session.hub.on("form-init", function (msg) {
     if (! msg.sameUrl) {
@@ -8130,8 +8265,13 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
         inRemoteUpdate = true;
         try {
           setValue(el, update.value);
-          if (update.version) {
-            $(el).data("towtruckHistory", ot.SimpleHistory(session.clientId, update.value, update.version));
+          if (update.basis) {
+            var history = $(el).data("towtruckHistory");
+            // don't overwrite history if we're already up to date
+            // (we might have outstanding queued changes we don't want to lose)
+            if ((!history) || update.basis !== history.basis) {
+              $(el).data("towtruckHistory", ot.SimpleHistory(session.clientId, update.value, update.basis));
+            }
           }
         } finally {
           inRemoteUpdate = false;
@@ -8199,14 +8339,16 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
 
   session.on("ui-ready", function () {
     $(document).on("change", change);
-    $(document).on("textInput keydown keyup cut paste", maybeChange);
+    // note that textInput, keydown, and keypress aren't appropriate events
+    // to watch, since they fire *before* the element's value changes.
+    $(document).on("input keyup cut paste", maybeChange);
     $(document).on("focusin", focus);
     $(document).on("focusout", blur);
   });
 
   session.on("close", function () {
     $(document).off("change", change);
-    $(document).off("textInput keyup cut paste", maybeChange);
+    $(document).off("input keyup cut paste", maybeChange);
     $(document).off("focusin", focus);
     $(document).off("focusout", blur);
   });

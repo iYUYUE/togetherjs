@@ -41,7 +41,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         return;
       }
       if (history) {
-        var delta = makeDiff(history.current, value);
+        var delta = ot.TextReplace.fromChange(history.current, value);
         assert(delta);
         history.add(delta);
         return maybeSendUpdate(msg.element, history);
@@ -50,7 +50,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
           console.warn("No previous known value on field", el[0]);
         }
         msg.value = value;
-        msg.version = 1;
+        msg.basis = 1;
         el.data("towtruckHistory", ot.SimpleHistory(session.clientId, value, 1));
       }
     } else {
@@ -71,6 +71,24 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
   var editTrackers = {};
   var liveTrackers = [];
 
+  TowTruck.addTracker = function (TrackerClass, skipSetInit) {
+    assert(typeof TrackerClass === "function", "You must pass in a class");
+    assert(typeof TrackerClass.prototype.trackerName === "string",
+           "Needs a .prototype.trackerName string");
+    // Test for required instance methods.
+    "destroy update init makeInit tracked".split(/ /).forEach(function(m) {
+      assert(typeof TrackerClass.prototype[m] === "function",
+             "Missing required tracker method: "+m);
+    });
+    // Test for required class methods.
+    "scan tracked".split(/ /).forEach(function(m) {
+      assert(typeof TrackerClass[m] === "function",
+             "Missing required tracker class method: "+m);
+    });
+    editTrackers[TrackerClass.prototype.trackerName] = TrackerClass;
+    if (!skipSetInit) { setInit(); }
+  };
+
   var AceEditor = util.Class({
 
     trackerName: "AceEditor",
@@ -80,6 +98,10 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       assert(this.element.hasClass("ace_editor"));
       this._change = this._change.bind(this);
       this._editor().document.on("change", this._change);
+    },
+
+    tracked: function (el) {
+      return this.element[0] === el;
     },
 
     destroy: function (el) {
@@ -131,7 +153,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     return !! $(el).closest(".ace_editor").length;
   };
 
-  editTrackers[AceEditor.prototype.trackerName] = AceEditor;
+  TowTruck.addTracker(AceEditor, true /* skip setInit */);
 
   var CodeMirrorEditor = util.Class({
     trackerName: "CodeMirrorEditor",
@@ -141,6 +163,10 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       assert(this.element[0].CodeMirror);
       this._change = this._change.bind(this);
       this._editor().on("change", this._change);
+    },
+
+    tracked: function (el) {
+      return this.element[0] === el;
     },
 
     destroy: function (el) {
@@ -213,7 +239,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     return false;
   };
 
-  editTrackers[CodeMirrorEditor.prototype.trackerName] = CodeMirrorEditor;
+  TowTruck.addTracker(CodeMirrorEditor, true /* skip setInit */);
 
   function buildTrackers() {
     assert(! liveTrackers.length);
@@ -246,7 +272,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     el = $(el)[0];
     for (var i=0; i<liveTrackers.length; i++) {
       var tracker = liveTrackers[i];
-      if (tracker.element[0] == el) {
+      if (tracker.tracked(el)) {
         assert((! name) || name == tracker.trackerName, "Expected to map to a tracker type", name, "but got", tracker.trackerName);
         return tracker;
       }
@@ -290,22 +316,22 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     eventMaker.fireChange(el);
   }
 
+  /* Send the top of this history queue, if it hasn't been already sent. */
   function maybeSendUpdate(element, history) {
-    var qdelta = history.queue[0];
-    if (!qdelta) { return; /* nothing to send */ }
-    if (qdelta.sent) { return; /* already sent */ }
-    assert(qdelta.version);
-    qdelta.sent = true;
+    var change = history.getNextToSend();
+    if (!change) { return; /* nothing to send */ }
     var msg = {
       type: "form-update",
       element: element,
-      "server-echo": session.clientId,
+      "server-echo": true,
       replace: {
-        id: qdelta.id,
-        version: qdelta.version,
-        start: qdelta.start,
-        del: qdelta.del,
-        text: qdelta.text
+        id: change.id,
+        basis: change.basis,
+        delta: {
+          start: change.delta.start,
+          del: change.delta.del,
+          text: change.delta.text
+        }
       }
     };
     session.send(msg);
@@ -335,7 +361,16 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     var value;
     if (msg.replace) {
       var history = el.data("towtruckHistory");
+      if (!history) {
+        console.warn("form update received for uninitialized form element");
+        return;
+      }
       history.setSelection(selection);
+      // make a real TextReplace object.
+      msg.replace.delta = ot.TextReplace(msg.replace.delta.start,
+                                         msg.replace.delta.del,
+                                         msg.replace.delta.text);
+      // apply this change to the history
       var changed = history.commit(msg.replace);
       maybeSendUpdate(msg.element, history);
       if (!changed) { return; }
@@ -380,14 +415,14 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         var history = el.data("towtruckHistory");
         if (history) {
           upd.value = history.committed;
-          upd.version = history.version;
+          upd.basis = history.basis;
         }
       }
       msg.updates.push(upd);
     });
     liveTrackers.forEach(function (tracker) {
       var init = tracker.makeInit();
-      assert(elementFinder.findElement(init.element) == tracker.element[0]);
+      assert(tracker.tracked(elementFinder.findElement(init.element)));
       msg.updates.push(init);
     });
     if (msg.updates.length) {
@@ -415,29 +450,6 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
   session.on("reinitialize", setInit);
 
   session.on("ui-ready", setInit);
-
-  function makeDiff(oldValue, newValue) {
-    assert(typeof oldValue == "string");
-    assert(typeof newValue == "string");
-    var commonStart = 0;
-    while (commonStart < newValue.length &&
-           newValue.charAt(commonStart) == oldValue.charAt(commonStart)) {
-      commonStart++;
-    }
-    var commonEnd = 0;
-    while (commonEnd < (newValue.length - commonStart) &&
-           commonEnd < (oldValue.length - commonStart) &&
-           newValue.charAt(newValue.length - commonEnd - 1) ==
-             oldValue.charAt(oldValue.length - commonEnd - 1)) {
-      commonEnd++;
-    }
-    var removed = oldValue.substr(commonStart, oldValue.length - commonStart - commonEnd);
-    var inserted = newValue.substr(commonStart, newValue.length - commonStart - commonEnd);
-    if (! (removed.length || inserted)) {
-      return null;
-    }
-    return ot.TextReplace(commonStart, removed.length, inserted);
-  }
 
   session.hub.on("form-init", function (msg) {
     if (! msg.sameUrl) {
@@ -469,8 +481,13 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         inRemoteUpdate = true;
         try {
           setValue(el, update.value);
-          if (update.version) {
-            $(el).data("towtruckHistory", ot.SimpleHistory(session.clientId, update.value, update.version));
+          if (update.basis) {
+            var history = $(el).data("towtruckHistory");
+            // don't overwrite history if we're already up to date
+            // (we might have outstanding queued changes we don't want to lose)
+            if ((!history) || update.basis !== history.basis) {
+              $(el).data("towtruckHistory", ot.SimpleHistory(session.clientId, update.value, update.basis));
+            }
           }
         } finally {
           inRemoteUpdate = false;
@@ -538,14 +555,16 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
 
   session.on("ui-ready", function () {
     $(document).on("change", change);
-    $(document).on("textInput keydown keyup cut paste", maybeChange);
+    // note that textInput, keydown, and keypress aren't appropriate events
+    // to watch, since they fire *before* the element's value changes.
+    $(document).on("input keyup cut paste", maybeChange);
     $(document).on("focusin", focus);
     $(document).on("focusout", blur);
   });
 
   session.on("close", function () {
     $(document).off("change", change);
-    $(document).off("textInput keyup cut paste", maybeChange);
+    $(document).off("input keyup cut paste", maybeChange);
     $(document).off("focusin", focus);
     $(document).off("focusout", blur);
   });
