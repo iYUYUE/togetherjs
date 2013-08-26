@@ -1,12 +1,23 @@
 /*
+Color palette based on Mozilla Style guide
+http://www.mozilla.org/en-US/styleguide/identity/firefox/color/
+
+Blue
+#0095DD
+
+Orange
+#FF9500
+
+Dark Grey
+#3A4349
+
+Red
+#DC3726
+
+Green
+#49BA7C
 
 */
-
-
-
-
-
-
 
 
 /* =Global
@@ -41,7 +52,7 @@ p {
 a {
   line-height: 1.38;
   font-size: 14px;
-  font-family: openSansLight, 'Open Sans', sans-serif;
+  font-family: openSansRegular, 'Open Sans', sans-serif;
 }
 
 a:hover {
@@ -50,7 +61,7 @@ a:hover {
 
 button {
   padding-bottom: 2px;
-  background-color: #41c3ac;
+  background-color: #49BA7C;
   font-weight: bold;
   text-align: center;
   color: rgb(22, 22, 22);
@@ -58,17 +69,17 @@ button {
 }
 
 .btn-primary {
-  background: #41c3ac;
+  background: #49BA7C;
   border-color: #2aa08b;
 }
 
 .btn-primary:hover {
-  background: #24a08a;
+  background: #74C593;
   border-color: #34b7a0;
 }
 
 footer a {
-  color: #0096dd;
+  color: #0095DD;
   text-decoration: none;
 }
 
@@ -142,9 +153,7 @@ h5 {
 ----------------------------------------------- */
 
 .main-header {
-  -webkit-box-shadow: rgba(0, 0, 0, 0.5) 0px 1px 1px 0px;
-  background-color: #3a3a3a;
-  box-shadow: rgba(0, 0, 0, 0.5) 0px 1px 1px 0px;
+  background-color: #3A4349;
   display: block;
   font-family: sans-serif;
 }
@@ -154,7 +163,7 @@ h5 {
   height: 48px;
   border-radius: 50%;
   border: 0px solid white;
-  background: url('/images/connect-logo@2x.png');
+  background: url('../images/togetherjs-logo@2x.png');
   background-size: 50% 50%;
   background-repeat: no-repeat;
   background-position: center center;
@@ -184,7 +193,7 @@ h5 {
   text-transform: uppercase;
   font-weight: 100;
   color: #fff;
-  margin: 6px 0px 0px;
+  margin: 7px -2px 0px;
   letter-spacing: 1px;
 }
 
@@ -240,13 +249,12 @@ h5 {
 ----------------------------------------------- */
 
 #hero {
-  background: url('../images/bg@2x.png') 100% 0 repeat fixed;
-  background-size: 100% 100%;
-	margin: 0 auto;
+  background: url('../images/bg@2x.png') 50% 0 no-repeat fixed;
+  background-size: 2042px 606px;
+	margin: 14px auto;
   width: 100%;
-  max-width: 1920px;
+  //max-width: 1920px;
   position: relative;
-  //box-shadow: 0 0 50px rgba(0,0,0,0.8);
 }
 
 /*
@@ -266,10 +274,15 @@ h5 {
 .hero-tagline {
   color: rgb(255, 255, 255);
   margin-bottom: 20px;
+  line-height: 24px;
 }
 
 #hero .container {
   padding-top: 20px;
+}
+
+#box-left {
+  margin-top: 3%;
 }
 
 #video-area {
@@ -328,9 +341,13 @@ h5 {
 
 #main-section p {
   color: rgb(22, 22, 22);
-  font-family: 'Open Sans Light',sans-serif;
+  font-family: 'Open Sans Regular',sans-serif;
   font-size: 16px;
   line-height: 27px;
+}
+
+#main-section #text-descrip {
+  margin: 0 15%;
 }
 
 #main-section h4 {
@@ -386,6 +403,21 @@ h5 {
 
 #howto-table td {
   border-top: 0px;
+}
+
+.howto-animation-01 p.smtextright {
+  width: 60%;
+  float: right;
+}
+
+.howto-animation-02 p.smtextleft {
+  width: 60%;
+  float: left;
+}
+
+.howto-animation-03 p.smtextright {
+  width: 60%;
+  float: right;
 }
 
 .how-section-imganim-01 {
@@ -470,7 +502,7 @@ h5 {
 ----------------------------------------------- */
 
 #main-section #examples img {
-  width: 100%;
+  width: 50%;
   margin: 0 auto;
   background: #efefef;
 }
@@ -491,7 +523,7 @@ h5 {
 /* =features section
 ----------------------------------------------- */
 
-#main-section #features a img {
+#main-section #features img {
   width: 64px;
   height: 64px;
 }
@@ -499,11 +531,21 @@ h5 {
 /* =tryitnow section
 ----------------------------------------------- */
 
+#tryitout pre {
+  margin-top: 50px;
+}
+
 /* =footer section
 ----------------------------------------------- */
 
 #footer a img {
   width: 50%;
+}
+
+#footer .ph-credit {
+  color: rgba(72, 72, 72, 0.5);
+  font-size: 10px;
+  margin-top: 20px;
 }
 
 
@@ -527,14 +569,10 @@ h5 {
 }
 
 .app-example .top-bar .red-circle {
-  margin: 10px 6px 10px 14px;
-  border-radius: 50%;
-  width: 10px;
-  height: 10px;
-  background: #df7166;
-  font-size: inherit;
-  opacity: 1;
-  line-height: 0;
+  text-shadow: none;
+  width: 30px;
+  height: 30px;
+  font-size: 20px;
 }
 
 .app-example .top-bar .yellow-circle {
@@ -545,10 +583,12 @@ h5 {
   background: #e6c646;
   border: none;
   padding: 4px;
+  display: none;
 }
 
 .app-example .top-bar .yellow-circle:hover {
  cursor: default;
+ display: none;
 }
 
 .app-example .top-bar .green-circle {
@@ -559,10 +599,12 @@ h5 {
   background: #5ccc8b;
   border: none;
   padding: 4px;
+  display: none;
 }
 
 .app-example .top-bar .green-circle:hover {
  cursor: default;
+ display: none;
 }
 
 .app-example .address-bar {
@@ -678,10 +720,78 @@ h5 {
 
 /* Extra small devices (phones, up to 480px) */
 @media (max-width: 480px) {
+  
+  #features .media > .pull-left {
+    margin-top: 20px;
+  }
+  
+  #howto-table td {
+    width: 50%;
+  }
+  
+  .cursor-placement-01 {
+    top: 25% !important;
+    left: 78%;
+  }
+
+  .cursor-placement-04 {
+    top: 19%;
+    left: 69%;
+  }
+
+  .cursor-placement-02 {
+    top: 62% !important;
+    left: 42%;
+  }
+
+  .cursor-placement-03 {
+    top: 45% !important;
+    left: 50%;
+  }
+  
+  .how-section-btncollab {
+    top: 32% !important;
+  }
+
+  .how-section-btncollabpressed {
+    top: 32% !important;
+  }
+
+  .how-section-dockplacement {
+    top: 28% !important;
+  }
+  
+  .how-section-imganim-01 {
+    top: 46% !important;
+  }
+
+  .how-section-imganim-02 {
+    top: 26% !important;
+  }
+
+  .how-section-imganim-03 {
+    top: 40% !important;
+  }
+  
+  .howto-animation-01 p.smtextright {
+    width: auto;
+    float: none;
+  }
+
+  .howto-animation-02 p.smtextleft {
+    width: auto;
+    float: none;
+  }
+
+  .howto-animation-03 p.smtextright {
+    width: auto;
+    float: none;
+  }
+  
   .large {
     font-size: 48px;
     line-height: 48px;
-    letter-spacing: -3px;
+    letter-spacing: normal;
   }
 
   h1 {
@@ -784,11 +894,15 @@ h5 {
   }
   
   #main-section #examples .ex-description {
-    min-height: 131px;
+    min-height: 0px;
   }
   
   #main-section #examples .ex-title {
-    min-height: 31px;
+    min-height: 0px;
+  }
+  
+  #tryitout pre {
+    margin-top: -30px;
   }
 
 }
@@ -796,12 +910,37 @@ h5 {
 /* Smaller devices (tablets, 480px and up) */
 @media (min-width: 480px) {
   
+  #features .media > .pull-left {
+    margin-top: 10px;
+  }
   
+  #tryitout pre {
+    margin-top: -26px;
+  }
+  
+  #howto-table td {
+    width: 50%;
+  }
+  
+  .howto-animation-01 p.smtextright {
+    width: auto;
+    float: none;
+  }
+
+  .howto-animation-02 p.smtextleft {
+    width: auto;
+    float: none;
+  }
+
+  .howto-animation-03 p.smtextright {
+    width: auto;
+    float: none;
+  }
   
   .large {
     font-size: 48px;
     line-height: 48px;
-    letter-spacing: -3px;
+    letter-spacing: normal;
   }
 
   h1 {
@@ -839,7 +978,12 @@ h5 {
   }
   
   #main-section #examples .ex-description {
-    min-height: 81px;
+    min-height: 0px;
+  }
+  
+  #main-section img.why-section {
+    width: 30%;
+    height: 30%;
   }
 
 
@@ -847,10 +991,15 @@ h5 {
 
 /* Small devices (tablets, 768px and up) */
 @media (min-width: 768px) {
+  
+  #tryitout pre {
+    margin-top: 50px;
+  }
+  
   .large {
     font-size: 72px;
     line-height: 100%;
-    letter-spacing: -5px;
+    letter-spacing: normal;
   }
 
   h1 {
@@ -893,17 +1042,33 @@ h5 {
   }
   
   #main-section #examples .ex-description {
-    min-height: 81px;
+    min-height: 60px;
   }
-
+  
 }
 
 /* Medium devices (desktops, 992px and up) */
 @media (min-width: 992px) {
+  
+  .howto-animation-01 p.smtextright {
+    width: 60%;
+    float: right;
+  }
+
+  .howto-animation-02 p.smtextleft {
+    width: 60%;
+    float: left;
+  }
+
+  .howto-animation-03 p.smtextright {
+    width: 60%;
+    float: right;
+  }
+  
   .large {
     font-size: 72px;
     line-height: 100%;
-    letter-spacing: -5px;
+    letter-spacing: normal;
   }
 
   h1 {
@@ -932,7 +1097,7 @@ h5 {
   }
 
   #video-area img {
-    /*margin-top: 74px;*/
+    margin-top: 7%;
   }
 
   #hero {
@@ -944,17 +1109,22 @@ h5 {
   }
   
   #main-section #examples .ex-description {
-    min-height: 51px;
+    min-height: 31px;
   }
 
 }
 
 /* Large devices (large desktops, 1200px and up) */
 @media (min-width: 1200px) {
+  
+  #video-area img {
+    margin-top: 0%;
+  }
+  
   .large {
     font-size: 72px;
     line-height: 100%;
-    letter-spacing: -5px;
+    letter-spacing: normal;
   }
 
   h1 {
@@ -1151,10 +1321,15 @@ dd {
   margin-top: 30px;
   margin-bottom: 20px;
   font-size: 36px;
+  line-height: 42px;
 }
 
 #markdownpages h3 {
   font-size: 24px;
+}
+
+#markdownpages code {
+  white-space: pre-wrap;
 }
 
 #markdownpages pre {
@@ -1167,7 +1342,7 @@ dd {
 }
 
 #markdownpages #sidenav {
-  margin-top: 40px;
+  margin-top: 20px;
 }
 
 #sidenav .well .btn {
@@ -1204,10 +1379,23 @@ dd {
   position: fixed;
 }
 
+.affix-bottom {
+  top: -200px !important;
+}
+
 @media (min-width: 1200px) {
+  
+  #markdownpages h1 {
+   font-weight: normal;
+  }
+  
+  #sourcecode h1 {
+   font-weight: normal;
+  }
   .affix, .affix-bottom {
     width: 263px !important;
     position: fixed !important;
+    bottom: 10px !important;
   }
   .col-md-9 h1:first-child {
     margin-top: 40px !important;
@@ -1227,6 +1415,7 @@ dd {
 }
 
 @media (min-width: 768px) {
+  
   .affix {
     position: static;
   }
@@ -1236,6 +1425,13 @@ dd {
 }
 
 @media (min-width: 480px) {
+  #sourcecode h1 {
+   font-size: 48px; 
+   line-height: 52px;
+  }
+  #markdownpages h1 {
+   font-size: 48px; 
+  }
   .affix {
     position: static;
   }
@@ -1245,6 +1441,17 @@ dd {
 }
 
 @media (max-width: 480px) {
+  
+  #sourcecode h1 {
+   font-size: 48px; 
+   line-height: 52px;
+  }
+  
+  #markdownpages h1 {
+   font-size: 48px; 
+   line-height: 52px;
+  }
+  
   .affix {
     position: static;
   }

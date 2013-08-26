@@ -10,7 +10,7 @@
     <meta name="viewport" content="width=320, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
     <meta name="description" content="Real time collaboration features for your website or app.">
     <meta name="author" content="">
-    <link rel="shortcut icon" href="../images/fav-icon.png">
+    <link rel="shortcut icon" href="../images/fav-icon.ico">
 
     <script src="../js/jquery-1.10.2.min.js"></script>
     <script src="../js/bootstrap.min.js"></script>
@@ -79,7 +79,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand main-logo scrollnav" href=".././"></a>
+          <a class="navbar-brand main-logo" href=".././"></a>
           <a class="navbar-brand masthead-title" href=".././">TogetherJS</a>
         </div>
 
@@ -189,7 +189,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */</span>
 
-define([<span class="string">"jquery"</span>, <span class="string">"jqueryPlugins"</span>, <span class="string">"jqueryui"</span>, <span class="string">"jquerypunch"</span>], <span class="function"><span class="keyword">function</span> <span class="params">($)</span> {</span>
+define([<span class="string">"jquery"</span>, <span class="string">"jqueryPlugins"</span>], <span class="function"><span class="keyword">function</span> <span class="params">($)</span> {</span>
   <span class="keyword">var</span> util = {};
 
   util.Deferred = $.Deferred;
@@ -435,6 +435,26 @@ define([<span class="string">"jquery"</span>, <span class="string">"jqueryPlugin
     };
   };
 
+  <span class="comment">/* Detects if a value is a promise.  Right now the presence of a
+     `.then()` method is the best we can do.
+  */</span>
+  util.isPromise = <span class="function"><span class="keyword">function</span> <span class="params">(obj)</span> {</span>
+    <span class="keyword">return</span> <span class="keyword">typeof</span> obj == <span class="string">"object"</span> &amp;&amp; obj.then;
+  };
+
+  <span class="comment">/* Makes a value into a promise, by returning an already-resolved
+     promise if a non-promise objectx is given.
+  */</span>
+  util.makePromise = <span class="function"><span class="keyword">function</span> <span class="params">(obj)</span> {</span>
+    <span class="keyword">if</span> (util.isPromise(obj)) {
+      <span class="keyword">return</span> obj;
+    } <span class="keyword">else</span> {
+      <span class="keyword">return</span> $.Deferred(<span class="function"><span class="keyword">function</span> <span class="params">(def)</span> {</span>
+        def.resolve(obj);
+      });
+    }
+  };
+
   <span class="comment">/* Resolves several promises (the promises are the arguments to the function)
      or the first argument may be an array of promises.
 
@@ -446,7 +466,9 @@ define([<span class="string">"jquery"</span>, <span class="string">"jqueryPlugin
      */</span>
   util.resolveMany = <span class="function"><span class="keyword">function</span> <span class="params">()</span> {</span>
     <span class="keyword">var</span> args;
+    <span class="keyword">var</span> oneArg = <span class="literal">false</span>;
     <span class="keyword">if</span> (arguments.length == <span class="number">1</span> &amp;&amp; Array.isArray(arguments[<span class="number">0</span>])) {
+      oneArg = <span class="literal">true</span>;
       args = arguments[<span class="number">0</span>];
     } <span class="keyword">else</span> {
       args = Array.prototype.slice.call(arguments);
@@ -474,9 +496,17 @@ define([<span class="string">"jquery"</span>, <span class="string">"jqueryPlugin
       <span class="function"><span class="keyword">function</span> <span class="title">check</span><span class="params">()</span> {</span>
         <span class="keyword">if</span> (! count) {
           <span class="keyword">if</span> (anyError) {
-            def.reject.apply(def, allResults);
+            <span class="keyword">if</span> (oneArg) {
+              def.reject(allResults);
+            } <span class="keyword">else</span> {
+              def.reject.apply(def, allResults);
+            }
           } <span class="keyword">else</span> {
-            def.resolve.apply(def, allResults);
+            <span class="keyword">if</span> (oneArg) {
+              def.resolve(allResults);
+            } <span class="keyword">else</span> {
+              def.resolve.apply(def, allResults);
+            }
           }
         }
       }
@@ -524,18 +554,18 @@ define([<span class="string">"jquery"</span>, <span class="string">"jqueryPlugin
         <footer>
 
           <section class="row" id="footer">
-            <div class="col-xs-3 text-left">
+            <div class="col-xs-12 col-sm-3 text-left">
               <p><a href="https://mozillalabs.com/en-US/" target="_blank"><img src="../images/footer-mozilla-labs.png"></a></p>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
-                <li class=""><a href=".././" class="scrollnav">Overview</a></li>
+                <li class=""><a href=".././" class="">Overview</a></li>
                 <li><a href=".././docs/" target="_blank">Docs</a></li>
                 <li class=""><a href="https://github.com/mozilla/togetherjs" target="_blank">Github</a></li>
                 <li class=""><a href="mailto:togetherjs@mozilla.com" target="_blank">Contact</a></li>
               </ul>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
                 <li class=""><a href="https://mozillalabs.com/en-US/togetherjs/" target="_blank">About</a></li>
                 <li><a href=".././docs/contributing.html">Contributing</a></li>
@@ -544,11 +574,12 @@ define([<span class="string">"jquery"</span>, <span class="string">"jqueryPlugin
                 <li class=""><a href="https://twitter.com/togetherjs" target="_blank">Twitter</a></li>
               </ul>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
                 <li class=""><a href="https://www.mozilla.org/en-US/privacy-policy.html" target="_blank">Privacy Policy</a></li>
                 <li class=""><a href="https://www.mozilla.org/en-US/about/legal.html" target="_blank">Legal Notices</a></li>
                 <li class=""><a href="https://www.mozilla.org/en-US/legal/fraud-report/index.html" target="_blank">Report Trademark Abuses</a></li>
+                <li class="ph-credit">Thanks to Yuan Wang for the cover photo!</li>
               </ul>
             </div>
           </section>
