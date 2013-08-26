@@ -467,7 +467,10 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
     // FIXME: need to figure out when to ignore inits
     msg.updates.forEach(function (update) {
-      var el = elementFinder.findElement(update.element);
+      var el;
+      try {
+        el = elementFinder.findElement(update.element);
+      } catch (e) { console.warn(e); return; /* skip missing element */ }
       if (update.tracker) {
         var tracker = getTracker(el, update.tracker);
         assert(tracker);
@@ -485,7 +488,12 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
             var history = $(el).data("towtruckHistory");
             // don't overwrite history if we're already up to date
             // (we might have outstanding queued changes we don't want to lose)
-            if ((!history) || update.basis !== history.basis) {
+            if (!(history && history.basis === update.basis &&
+                  // if history.basis is 1, the form could have lingering
+                  // edits from before towtruck was launched.  that's too bad,
+                  // we need to erase them to resynchronize with the peer
+                  // we just asked to join.
+                  history.basis !== 1)) {
               $(el).data("towtruckHistory", ot.SimpleHistory(session.clientId, update.value, update.basis));
             }
           }

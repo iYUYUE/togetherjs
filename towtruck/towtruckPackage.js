@@ -2305,7 +2305,7 @@ define('peers',["util", "session", "storage", "require"], function (util, sessio
       },
 
       _loadFromSettings: function () {
-        util.resolveMany(
+        return util.resolveMany(
           storage.settings.get("name"),
           storage.settings.get("avatar"),
           storage.settings.get("defaultName"),
@@ -2379,10 +2379,10 @@ define('peers',["util", "session", "storage", "require"], function (util, sessio
 
     peers.Self.view = ui.PeerView(peers.Self);
     storage.tab.get("peerCache").then(deserialize);
-    peers.Self._loadFromSettings();
-    peers.Self._loadFromApp();
-    peers.Self.view.update();
-
+    peers.Self._loadFromSettings().then(function() {
+        peers.Self._loadFromApp();
+        peers.Self.view.update();
+    });
   });
 
   session.on("refresh-user-data", function () {
@@ -3788,7 +3788,7 @@ define('elementFinder',["util", "jquery"], function (util, $) {
       el = el[0];
     }
     while (el) {
-      if (el.className && (el.className == "towtruck" || (el.className.indexOf && el.className.indexOf(" towtruck") != -1))) {
+      if ($(el).hasClass("towtruck")) {
         return true;
       }
       el = el.parentNode;
@@ -7332,7 +7332,7 @@ define('ot',["util"], function (util) {
       this.committed = change.delta.apply(this.committed);
       this.basis++;
       if (this.queue.length) { this.queue[0].basis = this.basis; }
-      // Update current by replaying queued changed starting from 'committed'
+      // Update current by replaying queued changes starting from 'committed'
       this.current = this.committed;
       this.queue.forEach(function(qchange) {
         this.current = qchange.delta.apply(this.current);
@@ -8251,7 +8251,10 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
     }
     // FIXME: need to figure out when to ignore inits
     msg.updates.forEach(function (update) {
-      var el = elementFinder.findElement(update.element);
+      var el;
+      try {
+        el = elementFinder.findElement(update.element);
+      } catch (e) { console.warn(e); return; /* skip missing element */ }
       if (update.tracker) {
         var tracker = getTracker(el, update.tracker);
         assert(tracker);
@@ -8269,7 +8272,12 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
             var history = $(el).data("towtruckHistory");
             // don't overwrite history if we're already up to date
             // (we might have outstanding queued changes we don't want to lose)
-            if ((!history) || update.basis !== history.basis) {
+            if (!(history && history.basis === update.basis &&
+                  // if history.basis is 1, the form could have lingering
+                  // edits from before towtruck was launched.  that's too bad,
+                  // we need to erase them to resynchronize with the peer
+                  // we just asked to join.
+                  history.basis !== 1)) {
               $(el).data("towtruckHistory", ot.SimpleHistory(session.clientId, update.value, update.basis));
             }
           }
