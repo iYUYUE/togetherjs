@@ -8235,6 +8235,8 @@ define('forms',["jquery", "util", "session", "elementFinder", "eventMaker", "tem
 
   session.on("ui-ready", setInit);
 
+  session.on("close", destroyTrackers);
+
   session.hub.on("form-init", function (msg) {
     if (! msg.sameUrl) {
       return;
