@@ -199,6 +199,11 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       delete change.origin;
       var next = change.next;
       delete change.next;
+      if (Array.isArray(change.text)) {
+        // This seems to be version-specific with CodeMirror, but sometimes
+        // the text is an array of lines.
+        change.text = change.text.join("\n");
+      }
       session.send({
         type: "form-update",
         tracker: this.trackerName,
@@ -550,7 +555,10 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       return;
     }
     var element = elementFinder.findElement(msg.element);
-    focusElements[msg.peer.id] = createFocusElement(msg.peer, element);
+    var el = createFocusElement(msg.peer, element);
+    if (el) {
+      focusElements[msg.peer.id] = el;
+    }
   });
 
   session.hub.on("hello", function (msg) {
@@ -565,9 +573,13 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
 
   function createFocusElement(peer, around) {
     around = $(around);
+    var aroundOffset = around.offset();
+    if (! aroundOffset) {
+      console.warn("Could not get offset of element:", around[0]);
+      return null;
+    }
     var el = templating.sub("focus", {peer: peer});
     el = el.find(".togetherjs-focus");
-    var aroundOffset = around.offset();
     el.css({
       top: aroundOffset.top-FOCUS_BUFFER + "px",
       left: aroundOffset.left-FOCUS_BUFFER + "px",

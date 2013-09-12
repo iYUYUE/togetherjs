@@ -79,7 +79,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand main-logo scrollnav" href=".././"></a>
+          <a class="navbar-brand main-logo" href=".././"></a>
           <a class="navbar-brand masthead-title" href=".././">TogetherJS</a>
         </div>
 
@@ -261,13 +261,19 @@
       configOverride = <span class="literal">null</span>;
     }
     <span class="keyword">if</span> ((! configOverride) || configOverride.expiresAt &lt; Date.now()) {
-      localStorage.removeItem(<span class="string">"togetherjs.cnofigOverride"</span>);
+      localStorage.removeItem(<span class="string">"togetherjs.configOverride"</span>);
     } <span class="keyword">else</span> {
+      <span class="keyword">var</span> shownAny = <span class="literal">false</span>;
       <span class="keyword">for</span> (<span class="keyword">var</span> attr <span class="keyword">in</span> configOverride) {
         <span class="keyword">if</span> (attr == <span class="string">"expiresAt"</span> || ! configOverride.hasOwnProperty(attr)) {
           <span class="keyword">continue</span>;
         }
+        <span class="keyword">if</span> (! shownAny) {
+          console.warn(<span class="string">"Using TogetherJS configOverride"</span>);
+          console.warn(<span class="string">"To undo run: localStorage.removeItem('togetherjs.configOverride')"</span>);
+        }
         window[<span class="string">"TogetherJSConfig_"</span> + attr] = configOverride[attr];
+        console.log(<span class="string">"Config override:"</span>, attr, <span class="string">"="</span>, configOverride[attr]);
       }
     }
   }
@@ -375,6 +381,14 @@ for production</p>
     } <span class="keyword">catch</span> (e) {
       console.warn(<span class="string">"Error determining starting button:"</span>, e);
     }
+    <span class="keyword">if</span> (window.TowTruckConfig) {
+      console.warn(<span class="string">"TowTruckConfig is deprecated; please use TogetherJSConfig"</span>);
+      <span class="keyword">if</span> (window.TogetherJSConfig) {
+        console.warn(<span class="string">"Ignoring TowTruckConfig in favor of TogetherJSConfig"</span>);
+      } <span class="keyword">else</span> {
+        window.TogetherJSConfig = TowTruckConfig;
+      }
+    }
     <span class="keyword">if</span> (window.TogetherJSConfig &amp;&amp; (! window.TogetherJSConfig.loaded)) {
       TogetherJS.config(window.TogetherJSConfig);
       window.TogetherJSConfig.loaded = <span class="literal">true</span>;
@@ -403,7 +417,17 @@ the &quot;on&quot; configuration value.</p>
       } <span class="keyword">else</span> <span class="keyword">if</span> (attr.indexOf(<span class="string">"TogetherJSConfig_"</span>) === <span class="number">0</span>) {
         attrName = attr.substr((<span class="string">"TogetherJSConfig_"</span>).length);
         TogetherJS.config(attrName, window[attr]);
+      } <span class="keyword">else</span> <span class="keyword">if</span> (attr.indexOf(<span class="string">"TowTruckConfig_on_"</span>) === <span class="number">0</span>) {
+        attrName = attr.substr((<span class="string">"TowTruckConfig_on_"</span>).length);
+        console.warn(<span class="string">"TowTruckConfig_* is deprecated, please rename"</span>, attr, <span class="string">"to TogetherJSConfig_on_"</span> + attrName);
+        globalOns[attrName] = window[attr];
+      } <span class="keyword">else</span> <span class="keyword">if</span> (attr.indexOf(<span class="string">"TogetherJSConfig_"</span>) === <span class="number">0</span>) {
+        attrName = attr.substr((<span class="string">"TogetherJSConfig_"</span>).length);
+        console.warn(<span class="string">"TowTruckConfig_* is deprecated, please rename"</span>, attr, <span class="string">"to TogetherJSConfig_"</span> + attrName);
+        TogetherJS.config(attrName, window[attr]);
       }
+
+
     }</pre></div></div>
               
             </li>
@@ -507,22 +531,7 @@ start itself (i.e., put up a UI and try to activate)</p>
     }
     <span class="keyword">var</span> requireConfig = TogetherJS._extend(TogetherJS.requireConfig);
     <span class="keyword">var</span> deps = [<span class="string">"session"</span>, <span class="string">"jquery"</span>];
-    <span class="function"><span class="keyword">function</span> <span class="title">callback</span><span class="params">(session, jquery)</span> {</span></pre></div></div>
-              
-            </li>
-          
-            <li id="section-13">
-              <div class="annotation">
-                <div class="pilwrap">
-                  <a class="pilcrow" href="#section-13">&#182;</a>
-                </div>
-                <p>Though jquery uses requirejs, it also always also defines a
-global, so we have to keep it from conflicting with any
-previous jquery:</p>
-
-              </div>
-              
-                <div class="content"><div class='highlight'><pre>      jquery.noConflict(<span class="literal">true</span>);
+    <span class="function"><span class="keyword">function</span> <span class="title">callback</span><span class="params">(session, jquery)</span> {</span>
       TogetherJS._loaded = <span class="literal">true</span>;
       <span class="keyword">if</span> (! min) {
         TogetherJS.require = require.config({context: <span class="string">"togetherjs"</span>});
@@ -538,10 +547,10 @@ previous jquery:</p>
               
             </li>
           
-            <li id="section-14">
+            <li id="section-13">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-14">&#182;</a>
+                  <a class="pilcrow" href="#section-13">&#182;</a>
                 </div>
                 <p>This is an already-configured version of require</p>
 
@@ -581,10 +590,10 @@ previous jquery:</p>
               
             </li>
           
-            <li id="section-15">
+            <li id="section-14">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-15">&#182;</a>
+                  <a class="pilcrow" href="#section-14">&#182;</a>
                 </div>
                 <p>What element, if any, was used to start the session:</p>
 
@@ -594,10 +603,10 @@ previous jquery:</p>
               
             </li>
           
-            <li id="section-16">
+            <li id="section-15">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-16">&#182;</a>
+                  <a class="pilcrow" href="#section-15">&#182;</a>
                 </div>
                 <p>The startReason is the reason TogetherJS was started.  One of:
   null: not started
@@ -610,10 +619,10 @@ previous jquery:</p>
               
             </li>
           
-            <li id="section-17">
+            <li id="section-16">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-17">&#182;</a>
+                  <a class="pilcrow" href="#section-16">&#182;</a>
                 </div>
                 <p>Also, the session may have started on &quot;this&quot; page, or maybe is continued
 from a past page.  TogetherJS.continued indicates the difference (false the
@@ -625,10 +634,10 @@ first time TogetherJS is started or joined, true on later page loads).</p>
               
             </li>
           
-            <li id="section-18">
+            <li id="section-17">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-18">&#182;</a>
+                  <a class="pilcrow" href="#section-17">&#182;</a>
                 </div>
                 <p>This is set to tell the session what shareId to use, if the boot
 code knows (mostly because the URL indicates the id).</p>
@@ -639,10 +648,10 @@ code knows (mostly because the URL indicates the id).</p>
               
             </li>
           
-            <li id="section-19">
+            <li id="section-18">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-19">&#182;</a>
+                  <a class="pilcrow" href="#section-18">&#182;</a>
                 </div>
                 <p>This tells session to start up immediately (otherwise it would wait
 for session.start() to be run)</p>
@@ -664,9 +673,7 @@ for session.start() to be run)</p>
       esprima: <span class="string">"libs/walkabout/lib/esprima"</span>,
       falafel: <span class="string">"libs/walkabout/lib/falafel"</span>,
       tinycolor: <span class="string">"libs/tinycolor"</span>,
-      whrandom: <span class="string">"libs/whrandom/random"</span>,
-      jqueryui: <span class="string">"libs/jquery-ui.min"</span>,
-      jquerypunch: <span class="string">"libs/jquery.ui.touch-punch.min"</span>
+      whrandom: <span class="string">"libs/whrandom/random"</span>
     }
   };
 
@@ -712,10 +719,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-20">
+            <li id="section-19">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-20">&#182;</a>
+                  <a class="pilcrow" href="#section-19">&#182;</a>
                 </div>
                 <p>FIXME: maybe I should add the event name to the .once attribute:</p>
 
@@ -735,10 +742,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-21">
+            <li id="section-20">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-21">&#182;</a>
+                  <a class="pilcrow" href="#section-20">&#182;</a>
                 </div>
                 <p>Defer the .off() call until the .emit() is done.</p>
 
@@ -793,10 +800,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-22">
+            <li id="section-21">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-22">&#182;</a>
+                  <a class="pilcrow" href="#section-21">&#182;</a>
                 </div>
                 <p>FIXME: this doesn&#39;t clear the context for min-case</p>
 
@@ -821,10 +828,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-23">
+            <li id="section-22">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-23">&#182;</a>
+                  <a class="pilcrow" href="#section-22">&#182;</a>
                 </div>
                 <p>Substitution wasn&#39;t made</p>
 
@@ -838,10 +845,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-24">
+            <li id="section-23">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-24">&#182;</a>
+                  <a class="pilcrow" href="#section-23">&#182;</a>
                 </div>
                 <p>Experimental feature to echo clicks to certain elements across clients:</p>
 
@@ -851,12 +858,14 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-25">
+            <li id="section-24">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-25">&#182;</a>
+                  <a class="pilcrow" href="#section-24">&#182;</a>
                 </div>
-                <p>Enable Mozilla or Google analytics on the page when TogetherJS is activated:</p>
+                <p>Enable Mozilla or Google analytics on the page when TogetherJS is activated:
+FIXME: these don&#39;t seem to be working, and probably should be removed in favor
+of the hub analytics</p>
 
               </div>
               
@@ -864,10 +873,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-26">
+            <li id="section-25">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-26">&#182;</a>
+                  <a class="pilcrow" href="#section-25">&#182;</a>
                 </div>
                 <p>The code to enable (this is defaulting to a Mozilla code):</p>
 
@@ -877,10 +886,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-27">
+            <li id="section-26">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-27">&#182;</a>
+                  <a class="pilcrow" href="#section-26">&#182;</a>
                 </div>
                 <p>The base URL of the hub</p>
 
@@ -890,10 +899,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-28">
+            <li id="section-27">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-28">&#182;</a>
+                  <a class="pilcrow" href="#section-27">&#182;</a>
                 </div>
                 <p>A function that will return the name of the user:</p>
 
@@ -903,10 +912,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-29">
+            <li id="section-28">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-29">&#182;</a>
+                  <a class="pilcrow" href="#section-28">&#182;</a>
                 </div>
                 <p>A function that will return the color of the user:</p>
 
@@ -916,10 +925,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-30">
+            <li id="section-29">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-30">&#182;</a>
+                  <a class="pilcrow" href="#section-29">&#182;</a>
                 </div>
                 <p>A function that will return the avatar of the user:</p>
 
@@ -929,10 +938,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-31">
+            <li id="section-30">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-31">&#182;</a>
+                  <a class="pilcrow" href="#section-30">&#182;</a>
                 </div>
                 <p>The siteName is used in the walkthrough (defaults to document.title):</p>
 
@@ -942,10 +951,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-32">
+            <li id="section-31">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-32">&#182;</a>
+                  <a class="pilcrow" href="#section-31">&#182;</a>
                 </div>
                 <p>Whether to use the minimized version of the code (overriding the built setting)</p>
 
@@ -955,10 +964,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-33">
+            <li id="section-32">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-33">&#182;</a>
+                  <a class="pilcrow" href="#section-32">&#182;</a>
                 </div>
                 <p>Any events to bind to</p>
 
@@ -968,10 +977,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-34">
+            <li id="section-33">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-34">&#182;</a>
+                  <a class="pilcrow" href="#section-33">&#182;</a>
                 </div>
                 <p>Hub events to bind to</p>
 
@@ -981,10 +990,10 @@ for session.start() to be run)</p>
               
             </li>
           
-            <li id="section-35">
+            <li id="section-34">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-35">&#182;</a>
+                  <a class="pilcrow" href="#section-34">&#182;</a>
                 </div>
                 <p>Enables the alt-T alt-T TogetherJS shortcut; however, this setting
 must be enabled early as TogetherJSConfig_enableShortcut = true;</p>
@@ -995,10 +1004,10 @@ must be enabled early as TogetherJSConfig_enableShortcut = true;</p>
               
             </li>
           
-            <li id="section-36">
+            <li id="section-35">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-36">&#182;</a>
+                  <a class="pilcrow" href="#section-35">&#182;</a>
                 </div>
                 <p>The name of this tool as provided to users.  The UI is updated to use this.
 Because of how it is used in text it should be a proper noun, e.g.,
@@ -1010,10 +1019,10 @@ Because of how it is used in text it should be a proper noun, e.g.,
               
             </li>
           
-            <li id="section-37">
+            <li id="section-36">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-37">&#182;</a>
+                  <a class="pilcrow" href="#section-36">&#182;</a>
                 </div>
                 <p>Used to auto-start TogetherJS with a {prefix: pageName, max: participants}
 Implies auto-start
@@ -1026,10 +1035,10 @@ given room.</p>
               
             </li>
           
-            <li id="section-38">
+            <li id="section-37">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-38">&#182;</a>
+                  <a class="pilcrow" href="#section-37">&#182;</a>
                 </div>
                 <p>If true, then the &quot;Join TogetherJS Session?&quot; confirmation dialog
 won&#39;t come up</p>
@@ -1040,10 +1049,10 @@ won&#39;t come up</p>
               
             </li>
           
-            <li id="section-39">
+            <li id="section-38">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-39">&#182;</a>
+                  <a class="pilcrow" href="#section-38">&#182;</a>
                 </div>
                 <p>If true, then the &quot;Invite a friend&quot; window won&#39;t automatically come up</p>
 
@@ -1053,16 +1062,31 @@ won&#39;t come up</p>
               
             </li>
           
-            <li id="section-40">
+            <li id="section-39">
               <div class="annotation">
                 <div class="pilwrap">
-                  <a class="pilcrow" href="#section-40">&#182;</a>
+                  <a class="pilcrow" href="#section-39">&#182;</a>
                 </div>
                 <p>A room in which to find people to invite to this session,</p>
 
               </div>
               
-                <div class="content"><div class='highlight'><pre>    inviteFromRoom: <span class="literal">null</span>
+                <div class="content"><div class='highlight'><pre>    inviteFromRoom: <span class="literal">null</span>,</pre></div></div>
+              
+            </li>
+          
+            <li id="section-40">
+              <div class="annotation">
+                <div class="pilwrap">
+                  <a class="pilcrow" href="#section-40">&#182;</a>
+                </div>
+                <p>This is used to keep sessions from crossing over on the same
+domain, if for some reason you want sessions that are limited
+to only a portion of the domain:</p>
+
+              </div>
+              
+                <div class="content"><div class='highlight'><pre>    storagePrefix: <span class="string">"togetherjs"</span>
   };</pre></div></div>
               
             </li>
@@ -1344,6 +1368,10 @@ FIXME: probably should remove, it&#39;s a wonky feature.</p>
               </div>
               
                 <div class="content"><div class='highlight'><pre>    <span class="keyword">var</span> callToStart = window.TogetherJSConfig_callToStart;
+    <span class="keyword">if</span> (! callToStart &amp;&amp; window.TowTruckConfig_callToStart) {
+      callToStart = window.TowTruckConfig_callToStart;
+      console.warn(<span class="string">"Please rename TowTruckConfig_callToStart to TogetherJSConfig_callToStart"</span>);
+    }
     <span class="keyword">if</span> (window.TogetherJSConfig &amp;&amp; window.TogetherJSConfig.callToStart) {
       callToStart = window.TogetherJSConfig.callToStart;
     }
@@ -1416,7 +1444,20 @@ Do we need to wait at all?</p>
               
                 <div class="content"><div class='highlight'><pre>  <span class="keyword">if</span> (window.TogetherJSConfig_enableShortcut) {
     TogetherJS.listenForShortcut();
-  }
+  }</pre></div></div>
+              
+            </li>
+          
+            <li id="section-52">
+              <div class="annotation">
+                <div class="pilwrap">
+                  <a class="pilcrow" href="#section-52">&#182;</a>
+                </div>
+                <p>For compatibility:</p>
+
+              </div>
+              
+                <div class="content"><div class='highlight'><pre>  window.TowTruck = TogetherJS;
 
 })();</pre></div></div>
               
@@ -1436,18 +1477,18 @@ Do we need to wait at all?</p>
         <footer>
 
           <section class="row" id="footer">
-            <div class="col-xs-3 text-left">
+            <div class="col-xs-12 col-sm-3 text-left">
               <p><a href="https://mozillalabs.com/en-US/" target="_blank"><img src="../images/footer-mozilla-labs.png"></a></p>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
-                <li class=""><a href=".././" class="scrollnav">Overview</a></li>
+                <li class=""><a href=".././" class="">Overview</a></li>
                 <li><a href=".././docs/" target="_blank">Docs</a></li>
                 <li class=""><a href="https://github.com/mozilla/togetherjs" target="_blank">Github</a></li>
                 <li class=""><a href="mailto:togetherjs@mozilla.com" target="_blank">Contact</a></li>
               </ul>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
                 <li class=""><a href="https://mozillalabs.com/en-US/togetherjs/" target="_blank">About</a></li>
                 <li><a href=".././docs/contributing.html">Contributing</a></li>
@@ -1456,11 +1497,12 @@ Do we need to wait at all?</p>
                 <li class=""><a href="https://twitter.com/togetherjs" target="_blank">Twitter</a></li>
               </ul>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
                 <li class=""><a href="https://www.mozilla.org/en-US/privacy-policy.html" target="_blank">Privacy Policy</a></li>
                 <li class=""><a href="https://www.mozilla.org/en-US/about/legal.html" target="_blank">Legal Notices</a></li>
                 <li class=""><a href="https://www.mozilla.org/en-US/legal/fraud-report/index.html" target="_blank">Report Trademark Abuses</a></li>
+                <li class="ph-credit">Thanks to Yuan Wang for the cover photo!</li>
               </ul>
             </div>
           </section>

@@ -79,7 +79,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand main-logo scrollnav" href=".././"></a>
+          <a class="navbar-brand main-logo" href=".././"></a>
           <a class="navbar-brand masthead-title" href=".././">TogetherJS</a>
         </div>
 
@@ -337,7 +337,9 @@ these sets:</p>
 
   });
 
-  <span class="keyword">var</span> storage = Storage(<span class="string">'localStorage'</span>, localStorage, <span class="string">"togetherjs."</span>);
+  <span class="keyword">var</span> namePrefix = TogetherJS.getConfig(<span class="string">"storagePrefix"</span>);
+
+  <span class="keyword">var</span> storage = Storage(<span class="string">'localStorage'</span>, localStorage, namePrefix + <span class="string">"."</span>);
 
   storage.settings = util.mixinEvents({
     defaults: DEFAULT_SETTINGS,
@@ -354,7 +356,7 @@ these sets:</p>
 
   });
 
-  storage.tab = Storage(<span class="string">'sessionStorage'</span>, sessionStorage, <span class="string">"togetherjs-session."</span>);
+  storage.tab = Storage(<span class="string">'sessionStorage'</span>, sessionStorage, namePrefix + <span class="string">"-session."</span>);
 
   <span class="keyword">return</span> storage;
 });</pre></div></div>
@@ -375,18 +377,18 @@ these sets:</p>
         <footer>
 
           <section class="row" id="footer">
-            <div class="col-xs-3 text-left">
+            <div class="col-xs-12 col-sm-3 text-left">
               <p><a href="https://mozillalabs.com/en-US/" target="_blank"><img src="../images/footer-mozilla-labs.png"></a></p>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
-                <li class=""><a href=".././" class="scrollnav">Overview</a></li>
+                <li class=""><a href=".././" class="">Overview</a></li>
                 <li><a href=".././docs/" target="_blank">Docs</a></li>
                 <li class=""><a href="https://github.com/mozilla/togetherjs" target="_blank">Github</a></li>
                 <li class=""><a href="mailto:togetherjs@mozilla.com" target="_blank">Contact</a></li>
               </ul>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
                 <li class=""><a href="https://mozillalabs.com/en-US/togetherjs/" target="_blank">About</a></li>
                 <li><a href=".././docs/contributing.html">Contributing</a></li>
@@ -395,11 +397,12 @@ these sets:</p>
                 <li class=""><a href="https://twitter.com/togetherjs" target="_blank">Twitter</a></li>
               </ul>
             </div>
-            <div class="col-xs-3">
+            <div class="col-xs-12 col-sm-3">
               <ul class="list-unstyled text-left">
                 <li class=""><a href="https://www.mozilla.org/en-US/privacy-policy.html" target="_blank">Privacy Policy</a></li>
                 <li class=""><a href="https://www.mozilla.org/en-US/about/legal.html" target="_blank">Legal Notices</a></li>
                 <li class=""><a href="https://www.mozilla.org/en-US/legal/fraud-report/index.html" target="_blank">Report Trademark Abuses</a></li>
+                <li class="ph-credit">Thanks to Yuan Wang for the cover photo!</li>
               </ul>
             </div>
           </section>

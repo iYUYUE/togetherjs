@@ -287,24 +287,38 @@ define(["require", "jquery", "util", "session", "templates", "templating", "link
       $('#togetherjs-dock #togetherjs-buttons').animate({
         opacity: 1
       });
-      $('.togetherjs-dock-right').animate({
-        width: "75%"
-      }, {
-        duration:60, easing:"linear"
-      });
+      
+      //for iphone
+      if($(window).width() < 480) {
+        $('.togetherjs-dock-right').animate({
+          width: "204px"
+        }, {
+          duration:60, easing:"linear"
+        });
+      }
+
+      //for ipad
+      else {
+        $('.togetherjs-dock-right').animate({
+          width: "27%"
+        }, {
+          duration:60, easing:"linear"
+        });
+      }
+
 
       // add bg overlay
-      $("body").append( "<div class='overlay' style='position: absolute; top: 0; left: 0; background-color: rgba(0,0,0,0.5); width: 120%; height: 100%; z-index: 1000; margin: -10px;'></div>" );
+      // $("body").append( "<div class='overlay' style='position: absolute; top: 0; left: -2px; background-color: rgba(0,0,0,0.5); width: 200%; height: 400%; z-index: 1000; margin: 0px;'></div>" );
 
       //disable vertical scrolling
-      $("body").css({
-        "position": "fixed",
-        top: 0,
-        left: 0
-      });
+      // $("body").css({
+      //   "position": "fixed",
+      //   top: 0,
+      //   left: 0
+      // });
 
       //replace the anchor icon
-      var src = "../images/togetherjs-logo-close.png";
+      var src = "/togetherjs/images/togetherjs-logo-close.png";
       $("#togetherjs-dock-anchor #togetherjs-dock-anchor-horizontal img").attr("src", src);
     }
 
@@ -317,7 +331,7 @@ define(["require", "jquery", "util", "session", "templates", "templating", "link
       });
 
       //replace the anchor icon
-      var src = "../images/togetherjs-logo-open.png";
+      var src = "/togetherjs/images/togetherjs-logo-open.png";
       $("#togetherjs-dock-anchor #togetherjs-dock-anchor-horizontal img").attr("src", src);
 
       $('.togetherjs-window').animate({
@@ -336,7 +350,7 @@ define(["require", "jquery", "util", "session", "templates", "templating", "link
       });
 
       // remove bg overlay
-      $(".overlay").remove();
+      //$(".overlay").remove();
     }
 
     // Setting the anchor button + dock mobile actions
@@ -352,17 +366,17 @@ define(["require", "jquery", "util", "session", "templates", "templating", "link
         windowing.toggle("#togetherjs-menu-window");
       });
 
-      $("body").append( "<div class='overlay' style='position: absolute; top: 0; left: 0; background-color: rgba(0,0,0,0.5); width: 120%; height: 100%; z-index: 1000; margin: -10px'></div>" );
+      // $("body").append( "<div class='overlay' style='position: absolute; top: 0; left: -2px; background-color: rgba(0,0,0,0.5); width: 200%; height: 400%; z-index: 1000; margin: 0px'></div>" );
 
       //disable vertical scrolling
-      $("body").css({
-        "position": "fixed",
-        top: 0,
-        left: 0
-      });
+      // $("body").css({
+      //   "position": "fixed",
+      //   top: 0,
+      //   left: 0
+      // });
 
       //replace the anchor icon
-      var src = "../images/togetherjs-logo-close.png";
+      var src = "/togetherjs/images/togetherjs-logo-close.png";
       $("#togetherjs-dock-anchor #togetherjs-dock-anchor-horizontal img").attr("src", src);
 
       $("#togetherjs-dock-anchor").toggle(function() {
@@ -438,7 +452,7 @@ define(["require", "jquery", "util", "session", "templates", "templating", "link
 
     $("#togetherjs-end-session").click(function () {
       session.close();
-      $(".overlay").remove();
+      //$(".overlay").remove();
 
     });
 
@@ -744,7 +758,7 @@ define(["require", "jquery", "util", "session", "templates", "templating", "link
 
     if($.browser.mobile) {
       // remove bg overlay
-      $(".overlay").remove();
+      //$(".overlay").remove();
 
       //after hitting End, reset window draggin
       $("body").css({
@@ -1138,6 +1152,14 @@ define(["require", "jquery", "util", "session", "templates", "templating", "link
         peer: this.peer
       });
     },
+    
+    // when there are too many participants in the dock, consolidate the participants to one avatar, and on mouseOver, the dock expands down to reveal the rest of the participants
+    // if there are X users in the session
+    // then hide the users in the dock
+    // and shrink the size of the dock
+    // and if you rollover the dock, it expands and reveals the rest of the participants in the dock
+    
+    //if users hit X then show the participant button with the consol
 
     dock: deferForContainer(function () {
       if (this.dockElement) {
@@ -1244,7 +1266,7 @@ define(["require", "jquery", "util", "session", "templates", "templating", "link
     },
 
     maybeHideDetailWindow: function (windows) {
-      if (windows[0] && windows[0][0] === this.detailElement[0]) {
+      if (this.detailElement && windows[0] && windows[0][0] === this.detailElement[0]) {
         if (this.followCheckbox[0].checked) {
           this.peer.follow();
         } else {

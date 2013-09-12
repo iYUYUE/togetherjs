@@ -38,7 +38,7 @@
       result.ready.then(function () {
         var el = $(".publish-button");
         var newButton = $('<div class="wm-button wm-button-blue short" title="Call The TogetherJS">Collaborate</div>');
-        newButton.click(startTogetherJS);
+        newButton.click(TogetherJS);
         el.before(newButton);
         window._TogetherJSLoads.forEach(function (callback) {
           callback();
@@ -50,6 +50,7 @@
     <script>
       TogetherJSConfig_findRoom = {prefix: "togetherjsfriendly", max: 5};
       TogetherJSConfig_suppressJoinConfirmation = true;
+      TogetherJSConfig_storagePrefix = "tjs_friendlycode";
     </script>
     <script src="/togetherjs.js"></script>
   </body>
