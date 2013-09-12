@@ -7,7 +7,7 @@
 
   var styleSheet = "/togetherjs/togetherjs.css";
 
-  var baseUrl = "http://togetherjs.github.cscott.net/";
+  var baseUrl = "https://pinklake.wmflabs.org/extensions/TogetherJS/togetherjs";
   if (baseUrl == "__" + "baseUrl__") {
     // Reset the variable if it doesn't get substituted
     baseUrl = "";
@@ -390,7 +390,7 @@
     return "TogetherJS";
   };
 
-  var defaultHubBase = "http://wmftowtruck-8795.onmodulus.net";
+  var defaultHubBase = "https://wmftowtruck-8795.onmodulus.net";
   if (defaultHubBase == "__" + "hubUrl"+ "__") {
     // Substitution wasn't made
     defaultHubBase = "https://hub.togetherjs.mozillalabs.com";
