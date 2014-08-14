@@ -435,7 +435,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       var els = TrackerClass.scan();
       if (els) {
         $.each(els, function () {
-          var tracker = new TrackerClass(this);
+          var tracker = new TrackerClass(this, sendData);
           liveTrackers.push(tracker);
           setHistory($(this), ot.SimpleHistory(session.clientId, getValue(this, tracker), 1), tracker);
         });
@@ -555,6 +555,11 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
 
   /* Send the top of this history queue, if it hasn't been already sent. */
   function maybeSendUpdate(el, elementPath, history, trackerName) {
+    var tracker = trackerName && getTracker(el, trackerName);
+    // Use tracker implementation of this method, if available
+    if (tracker && tracker.maybeSendUpdate) {
+      return tracker.maybeSendUpdate(history);
+    }
     var change = history.getNextToSend();
     if (! change) {
       /* nothing to send */
