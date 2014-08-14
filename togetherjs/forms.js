@@ -41,13 +41,13 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
   function sendData(attrs) {
     var el = $(attrs.element);
     assert(el);
-    var tracker = attrs.tracker;
+    var trackerName = attrs.tracker;
     var value = attrs.value;
     if (inRemoteUpdate) {
       return;
     }
     if (elementFinder.ignoreElement(el) ||
-        (elementTracked(el) && !tracker) ||
+        (elementTracked(el) && !trackerName) ||
         suppressSync(el)) {
       return;
     }
@@ -56,7 +56,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       type: "form-update",
       element: location
     };
-    if (isText(el) || tracker) {
+    if (isText(el) || trackerName) {
       var history = el.data("togetherjsHistory");
       if (history) {
         if (history.current == value) {
@@ -65,7 +65,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         var delta = ot.TextReplace.fromChange(history.current, value);
         assert(delta);
         history.add(delta);
-        maybeSendUpdate(msg.element, history, tracker);
+        maybeSendUpdate(msg.element, history, trackerName);
         return;
       } else {
         msg.value = value;
@@ -537,7 +537,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
   }
 
   /* Send the top of this history queue, if it hasn't been already sent. */
-  function maybeSendUpdate(element, history, tracker) {
+  function maybeSendUpdate(element, history, trackerName) {
     var change = history.getNextToSend();
     if (! change) {
       /* nothing to send */
@@ -557,8 +557,8 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         }
       }
     };
-    if (tracker) {
-      msg.tracker = tracker;
+    if (trackerName) {
+      msg.tracker = trackerName;
     }
     session.send(msg);
   }
