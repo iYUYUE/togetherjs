@@ -57,7 +57,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       element: location
     };
     if (isText(el) || trackerName) {
-      var history = el.data("togetherjsHistory");
+      var history = getHistory(el);
       if (history) {
         if (history.current == value) {
           return;
@@ -70,7 +70,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       } else {
         msg.value = value;
         msg.basis = 1;
-        el.data("togetherjsHistory", ot.SimpleHistory(session.clientId, value, 1));
+        setHistory(el, ot.SimpleHistory(session.clientId, value, 1));
       }
     } else {
       msg.value = value;
@@ -436,8 +436,8 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       if (els) {
         $.each(els, function () {
           var tracker = new TrackerClass(this);
-          $(this).data("togetherjsHistory", ot.SimpleHistory(session.clientId, tracker.getContent(), 1));
           liveTrackers.push(tracker);
+          setHistory($(this), ot.SimpleHistory(session.clientId, getValue(this, tracker), 1), tracker);
         });
       }
     });
@@ -474,6 +474,20 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
     return null;
   }
+  function getHistory(el, tracker) {
+    tracker = (tracker === undefined) ? getTracker(el) : tracker;
+    if (tracker && tracker.getHistory) {
+      return tracker.getHistory();
+    }
+    return el.data('togetherjsHistory');
+  }
+  function setHistory(el, history, tracker) {
+    tracker = (tracker === undefined) ? getTracker(el) : tracker;
+    if (tracker && tracker.setHistory) {
+      return tracker.setHistory(history);
+    }
+    return el.data('togetherjsHistory', history);
+  }
 
   var TEXT_TYPES = (
     "color date datetime datetime-local email " +
@@ -492,9 +506,12 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     return false;
   }
 
-  function getValue(el) {
+  function getValue(el, tracker) {
     el = $(el);
-    if (isCheckable(el)) {
+    tracker = (tracker === undefined) ? getTracker(el) : tracker;
+    if (tracker && tracker.getContent) {
+      return tracker.getContent();
+    } else if (isCheckable(el)) {
       return el.prop("checked");
     } else {
       return el.val();
@@ -568,7 +585,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       return;
     }
     var el = $(elementFinder.findElement(msg.element));
-    var tracker;
+    var tracker = null;
     if (msg.tracker) {
       tracker = getTracker(el, msg.tracker);
       assert(tracker);
@@ -584,7 +601,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
     var value;
     if (msg.replace) {
-      var history = el.data("togetherjsHistory");
+      var history = getHistory(el, tracker);
       if (!history) {
         console.warn("form update received for uninitialized form element");
         return;
@@ -596,11 +613,8 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
                                          msg.replace.delta.text);
       // apply this change to the history
       var changed = history.commit(msg.replace);
-      var trackerName = null;
-      if (typeof tracker != "undefined") {
-        trackerName = tracker.trackerName;
-      }
-      maybeSendUpdate(el, msg.element, history, trackerName);
+
+      maybeSendUpdate(el, msg.element, history, msg.tracker);
       if (! changed) {
         return;
       }
@@ -656,7 +670,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         value: value
       };
       if (isText(el)) {
-        var history = el.data("togetherjsHistory");
+        var history = getHistory(el, null);
         if (history) {
           upd.value = history.committed;
           upd.basis = history.basis;
@@ -667,7 +681,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     liveTrackers.forEach(function (tracker) {
       var init = tracker.makeInit();
       assert(tracker.tracked(init.element));
-      var history = $(init.element).data("togetherjsHistory");
+      var history = getHistory($(init.element), tracker);
       if (history) {
         init.value = history.committed;
         init.basis = history.basis;
@@ -690,8 +704,8 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         return;
       }
       var el = $(this);
-      var value = getValue(el);
-      el.data("togetherjsHistory", ot.SimpleHistory(session.clientId, value, 1));
+      var value = getValue(el, null);
+      setHistory(el, ot.SimpleHistory(session.clientId, value, 1), null);
     });
     destroyTrackers();
     buildTrackers();
@@ -729,15 +743,16 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       }
         inRemoteUpdate = true;
         try {
+          var tracker = null;
           if (update.tracker) {
-            var tracker = getTracker(el, update.tracker);
+            tracker = getTracker(el, update.tracker);
             assert(tracker);
             tracker.init(update, msg);
           } else {
             setValue(el, update.value);
           }
           if (update.basis) {
-            var history = $(el).data("togetherjsHistory");
+            var history = getHistory($(el), tracker);
             // don't overwrite history if we're already up to date
             // (we might have outstanding queued changes we don't want to lose)
             if (!(history && history.basis === update.basis &&
@@ -746,7 +761,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
                   // we need to erase them to resynchronize with the peer
                   // we just asked to join.
                   history.basis !== 1)) {
-              $(el).data("togetherjsHistory", ot.SimpleHistory(session.clientId, update.value, update.basis));
+              setHistory($(el), ot.SimpleHistory(session.clientId, update.value, update.basis), tracker);
             }
           }
         } finally {
