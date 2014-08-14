@@ -65,7 +65,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         var delta = ot.TextReplace.fromChange(history.current, value);
         assert(delta);
         history.add(delta);
-        maybeSendUpdate(msg.element, history, trackerName);
+        maybeSendUpdate(el, location, history, trackerName);
         return;
       } else {
         msg.value = value;
@@ -537,7 +537,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
   }
 
   /* Send the top of this history queue, if it hasn't been already sent. */
-  function maybeSendUpdate(element, history, trackerName) {
+  function maybeSendUpdate(el, elementPath, history, trackerName) {
     var change = history.getNextToSend();
     if (! change) {
       /* nothing to send */
@@ -545,7 +545,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
     var msg = {
       type: "form-update",
-      element: element,
+      element: elementPath,
       "server-echo": true,
       replace: {
         id: change.id,
@@ -600,7 +600,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       if (typeof tracker != "undefined") {
         trackerName = tracker.trackerName;
       }
-      maybeSendUpdate(msg.element, history, trackerName);
+      maybeSendUpdate(el, msg.element, history, trackerName);
       if (! changed) {
         return;
       }
