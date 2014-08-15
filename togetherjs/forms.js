@@ -59,10 +59,10 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     if (isText(el) || trackerName) {
       var history = getHistory(el);
       if (history) {
-        if (history.current == value) {
-          return;
+        var delta = makeDelta(el, history, value);
+        if (delta === null) {
+          return; // no change
         }
-        var delta = ot.TextReplace.fromChange(history.current, value);
         assert(delta);
         history.add(delta);
         maybeSendUpdate(el, location, history, trackerName);
@@ -488,6 +488,35 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
     return el.data('togetherjsHistory', history);
   }
+  function makeDelta(el, history, value, tracker) {
+    tracker = (tracker === undefined) ? getTracker(el) : tracker;
+    if (tracker && tracker.makeDelta) {
+      return tracker.makeDelta(history, value);
+    }
+    if (history.current == value) {
+      return null; /* no change */
+    }
+    return ot.TextReplace.fromChange(history.current, value);
+  }
+  function serializeDelta(el, delta, tracker) {
+    tracker = (tracker === undefined) ? getTracker(el) : tracker;
+    if (tracker && tracker.serializeDelta) {
+      return tracker.serializeDelta(delta);
+    }
+    return {
+      start: delta.start,
+      del: delta.del,
+      text: delta.text
+    };
+  }
+  function parseDelta(el, delta, tracker) {
+    tracker = (tracker === undefined) ? getTracker(el) : tracker;
+    if (tracker && tracker.parseDelta) {
+      return tracker.parseDelta(delta);
+    }
+    // make a real TextReplace object.
+    return ot.TextReplace(delta.start, delta.del, delta.text);
+  }
 
   var TEXT_TYPES = (
     "color date datetime datetime-local email " +
@@ -572,11 +601,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       replace: {
         id: change.id,
         basis: change.basis,
-        delta: {
-          start: change.delta.start,
-          del: change.delta.del,
-          text: change.delta.text
-        }
+        delta: serializeDelta(el, change.delta, tracker)
       }
     };
     if (trackerName) {
@@ -612,11 +637,8 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
         return;
       }
       history.setSelection(selection);
-      // make a real TextReplace object.
-      msg.replace.delta = ot.TextReplace(msg.replace.delta.start,
-                                         msg.replace.delta.del,
-                                         msg.replace.delta.text);
       // apply this change to the history
+      msg.replace.delta = parseDelta(el, msg.replace.delta, tracker);
       var changed = history.commit(msg.replace);
 
       maybeSendUpdate(el, msg.element, history, msg.tracker);
