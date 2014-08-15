@@ -95,7 +95,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     assert(typeof TrackerClass.prototype.trackerName === "string",
            "Needs a .prototype.trackerName string");
     // Test for required instance methods.
-    "destroy update init makeInit tracked".split(/ /).forEach(function(m) {
+    "destroy update tracked".split(/ /).forEach(function(m) {
       assert(typeof TrackerClass.prototype[m] === "function",
              "Missing required tracker method: "+m);
     });
@@ -131,18 +131,6 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
 
     update: function (msg) {
       this._editor().document.setValue(msg.value);
-    },
-
-    init: function (update, msg) {
-      this.update(update);
-    },
-
-    makeInit: function () {
-      return {
-        element: this.element,
-        tracker: this.trackerName,
-        value: this._editor().document.getValue()
-      };
     },
 
     _editor: function () {
@@ -197,20 +185,6 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
 
     update: function (msg) {
       this._editor().setValue(msg.value);
-    },
-
-    init: function (msg) {
-      if (msg.value) {
-        this.update(msg);
-      }
-    },
-
-    makeInit: function () {
-      return {
-        element: this.element,
-        tracker: this.trackerName,
-        value: this._editor().getValue()
-      };
     },
 
     _change: function (editor, change) {
@@ -282,18 +256,6 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       this._editor().editable().setHtml(msg.value);
     },
 
-    init: function (update, msg) {
-      this.update(update);
-    },
-
-    makeInit: function () {
-      return {
-        element: this.element,
-        tracker: this.trackerName,
-        value: this.getContent()
-      };
-    },
-
     _change: function (e) {
       if (inRemoteUpdate) {
         return;
@@ -360,18 +322,6 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
 
     update: function (msg) {
       this._editor().setContent(msg.value, {format: 'raw'});
-    },
-
-    init: function (update, msg) {
-      this.update(update);
-    },
-
-    makeInit: function () {
-      return {
-        element: this.element,
-        tracker: this.trackerName,
-        value: this.getContent()
-      };
     },
 
     _change: function (e) {
@@ -516,6 +466,20 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
     // make a real TextReplace object.
     return ot.TextReplace(delta.start, delta.del, delta.text);
+  }
+  function serializeInitValue(el, value, tracker) {
+    tracker = (tracker === undefined) ? getTracker(el) : tracker;
+    if (tracker && tracker.serializeInitValue) {
+      return tracker.serializeInitValue(value);
+    }
+    return value;
+  }
+  function parseInitValue(el, value, tracker) {
+    tracker = (tracker === undefined) ? getTracker(el) : tracker;
+    if (tracker && tracker.parseInitValue) {
+      return tracker.parseInitValue(value);
+    }
+    return value;
   }
 
   var TEXT_TYPES = (
@@ -706,13 +670,23 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       msg.updates.push(upd);
     });
     liveTrackers.forEach(function (tracker) {
-      var init = tracker.makeInit();
-      assert(tracker.tracked(init.element));
-      var history = getHistory($(init.element), tracker);
-      if (history) {
-        init.value = history.committed;
-        init.basis = history.basis;
+      var init;
+      if ( tracker.makeInit ) {
+        // the tracker doesn't want to use our history mechanism.
+        init = tracker.makeInit();
+      } else {
+        init = {
+          element: tracker.element,
+          tracker: tracker.trackerName
+        };
+        var el = $(init.element);
+        var history = getHistory(el, tracker);
+        if (history) {
+          init.value = serializeInitValue(el, history.committed, tracker);
+          init.basis = history.basis;
+        }
       }
+      assert(tracker.tracked(init.element));
       init.element = elementFinder.elementLocation($(init.element));
       msg.updates.push(init);
     });
@@ -774,9 +748,6 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
           if (update.tracker) {
             tracker = getTracker(el, update.tracker);
             assert(tracker);
-            tracker.init(update, msg);
-          } else {
-            setValue(el, update.value);
           }
           if (update.basis) {
             var history = getHistory($(el), tracker);
@@ -788,8 +759,20 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
                   // we need to erase them to resynchronize with the peer
                   // we just asked to join.
                   history.basis !== 1)) {
-              setHistory($(el), ot.SimpleHistory(session.clientId, update.value, update.basis), tracker);
+              setHistory(
+                $(el),
+                ot.SimpleHistory(
+                  session.clientId,
+                  parseInitValue($(el), update.value, tracker),
+                  update.basis
+                ),
+                tracker);
             }
+          }
+          if(tracker) {
+            tracker.update({value: update.value});
+          } else {
+            setValue(el, update.value);
           }
         } finally {
           inRemoteUpdate = false;
