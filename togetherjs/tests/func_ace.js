@@ -59,8 +59,10 @@ Test.incoming({
 
 send: hello-back...
 send: form-init
+  authority: [...],
   clientId: "me",
-  pageAge: ?,
+  requester: "faker",
+  "server-echo": true,
   updates: [
    {
       basis: 1,

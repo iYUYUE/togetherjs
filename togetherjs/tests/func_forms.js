@@ -147,6 +147,10 @@ send: form-update
 
 select(3, 4);
 
+var myAuthority;
+Test.viewSend.once("form-init", function(msg) {
+  myAuthority = msg.authority;
+});
 Test.waitMessage("form-focus");
 Test.incoming({
   type: "hello",
@@ -159,6 +163,9 @@ Test.incoming({
   title: document.title,
   rtcSupported: false
 });
+// Note that the client will ignore this update, until it hears
+// its own form-init echoed back.  This ensures that the peer
+// doesn't initialize to a stale state.
 Test.incoming({
   clientId: "faker",
   type: 'form-update',
@@ -177,13 +184,15 @@ Test.incoming({
 
 send: hello-back...
 send: form-init
+  authority: [...],
   clientId: "me",
-  pageAge: ?,
+  requester: "faker",
+  "server-echo": true,
   updates: [
     {
-      basis: 5,
+      basis: 4,
       element: "#textarea",
-      value: "hey there"
+      value: "hi there"
     },
     {
       element: "#yes",
@@ -196,6 +205,60 @@ send: form-init
   ]
 send: form-focus...
 */
+
+print($textarea.val());
+selection();
+print(myAuthority);
+
+/* =>
+hi there
+selected 3 - 4
+[...]
+*/
+
+// Now echo back the form-init message, followed by a retransmit of the
+// previous update.  This time it will be applied.
+
+Test.incoming({
+  clientId: "me",
+  type: "form-init",
+  requester: "faker",
+  authority: myAuthority,
+  "sever-echo": true,
+  element: "#textarea",
+  updates: [
+    {
+      basis: 4,
+      element: "#textarea",
+      value: "hi there"
+    },
+    {
+      element: "#yes",
+      value: false
+    },
+    {
+      element: "#no",
+      value: true
+    }
+  ]
+});
+Test.incoming({
+  clientId: "faker",
+  type: 'form-update',
+  element: "#textarea",
+  replace: {
+    basis: 4,
+    delta: {
+      start: 1,
+      del: 1,
+      text: "ey"
+    }
+  }
+});
+wait(function() { return $textarea.val()==='hey there'; });
+
+/* =>
+ */
 
 print($textarea.val());
 selection();
@@ -229,21 +292,24 @@ hELLO there
 selected 0 - 7
 */
 
-// form-init should be ignored in some cases...
-print(Date.now() - TogetherJS.pageLoaded > 10);
+// unsolicited form-init should be ignored...
 Test.incoming({
   clientId: "faker",
   type: "form-init",
-  pageAge: 10,
+  requester: "faker",
+  authority: [0,0],
+  "server-echo": true,
   updates: [
-    {element: "#textarea",
-     value: "foo"
+    {
+      basis: 6,
+      element: "#textarea",
+      value: "foo"
     }
   ]
 });
 wait(100);
 
-// => true
+// =>
 
 print($textarea.val());
 

@@ -275,7 +275,8 @@ wsServer.on('request', function(request) {
   logger.debug('Connection accepted to ' + JSON.stringify(id) + ' ID:' + connection.ID);
   connection.sendUTF(JSON.stringify({
     type: "init-connection",
-    peerCount: allConnections[id].length-1
+    peerCount: allConnections[id].length-1,
+    "server-time": process.hrtime() // hi-res connection timestamp
   }));
   connection.on('message', function(message) {
     var parsed;

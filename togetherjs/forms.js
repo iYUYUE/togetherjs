@@ -574,6 +574,12 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     session.send(msg);
   }
 
+  var deferUpdate = [];
+  session.hub.on("init-connection", function(msg) {
+    // hm, hub reset.  we might never hear our form-init message echoed.
+    deferUpdate.length = 0;
+  });
+
   session.hub.on("form-update", function (msg) {
     if (! msg.sameUrl) {
       return;
@@ -603,7 +609,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
       history.setSelection(selection);
       // apply this change to the history
       msg.replace.delta = parseDelta(el, msg.replace.delta, tracker);
-      var changed = history.commit(msg.replace);
+      var changed = history.commit(msg.replace, deferUpdate.length > 0);
 
       maybeSendUpdate(el, msg.element, history, msg.tracker);
       if (! changed) {
@@ -638,15 +644,44 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
   });
 
-  var initSent = false;
+  var authority = null;
 
-  function sendInit() {
-    initSent = true;
+  function compareAuthority(other) {
+    // lazy init of our local authority
+    if (authority === null) {
+      authority = session.timestamp;
+    }
+    // authorities are two-component timestamp tuples, [seconds, nanoseconds],
+    // as returned by process.hrtime() on the hub.
+    for (var i=0; i < authority.length; i++) {
+      if ( authority[i] !== other[i] ) {
+        return authority[i] < other[i] ? -1 : 1;
+      }
+    }
+    return 0;
+  }
+
+  function sendInit(requesterId) {
+    if ( session.clientId === requesterId ) {
+      // oh! this was me asking!  nevermind.
+      return;
+    }
+
     var msg = {
       type: "form-init",
-      pageAge: Date.now() - TogetherJS.pageLoaded,
+      "server-echo": true,
+      requester: requesterId,
+      authority: authority || session.timestamp,
       updates: []
     };
+
+    // prevent races by deferring updates to the shared state until
+    // we've heard this `form-init` message echoed by the hub.
+    deferUpdate.push({
+      requester: msg.requester,
+      authority: msg.authority
+    });
+
     var els = $("textarea, input, select");
     els.each(function () {
       if (elementFinder.ignoreElement(this) || elementTracked(this) ||
@@ -722,17 +757,43 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     if (! msg.sameUrl) {
       return;
     }
-    if (initSent) {
-      // In a 3+-peer situation more than one client may init; in this case
-      // we're probably the other peer, and not the peer that needs the init
-      // A quick check to see if we should init...
-      var myAge = Date.now() - TogetherJS.pageLoaded;
-      if (msg.pageAge < myAge) {
-        // We've been around longer than the other person...
-        return;
-      }
+
+    // We need to protect against updates applied to the shared state
+    // in the interval between *sending* the `form-init` message and
+    // *receiving* the `form-init` message.  Defer updates received in
+    // this interval.  Otherwise the peer could init to a state which
+    // no longer matched the latest shared state of the other peers.
+    if (deferUpdate.length > 0 &&
+        deferUpdate[0].requester === msg.requester &&
+        compareAuthority(deferUpdate[0].authority) === 0) {
+      deferUpdate.shift();
     }
-    // FIXME: need to figure out when to ignore inits
+
+    // The peer which initiates the session never receives a form-init
+    // message in response to their hello.  In a 2-peer situation, the
+    // second peer gets exactly one form-init in response to hello, so
+    // that's fine.  But in a 3+-peer situation more than one client may
+    // hello at the same time; we want to ensure that the form-init sent
+    // but the not-yet-sync'ed new peer(s) aren't heeded!  (But the new
+    // peers don't *know* that they aren't yet sync'ed, they could be
+    // session initiators.)
+
+    // Use "session age" as a way to break this tie.  This is a timestamp
+    // handed out by the server (so it is not subject to the whims of
+    // client-side timekeeping) in the "init-connection" message.
+
+    if ( msg.requester !== session.clientId ) {
+      // I'm already sync'ed up, ignore this.
+      return;
+    }
+
+    if ( compareAuthority( msg.authority ) <= 0 ) {
+      // This response is not older than I am!  Ignore it.
+      return;
+    }
+    // we're syncing to the authority of this sender
+    authority = msg.authority;
+
     msg.updates.forEach(function (update) {
       var el;
       try {
@@ -824,6 +885,22 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
   });
 
+  session.hub.on("hello", function (msg) {
+    if (msg.sameUrl) {
+      // the init message is sent atomically with the receipt of the 'hello'
+      // so that all peers are guaranteed to send an init with the same shared
+      // state.
+      sendInit(msg.clientId);
+      // letting the new peer know about our focus is idempotent,
+      // can happen later.
+      setTimeout(function() {
+        if (lastFocus) {
+          session.send({type: "form-focus", element: elementFinder.elementLocation(lastFocus)});
+        }
+      });
+    }
+  });
+
   function createFocusElement(peer, around) {
     around = $(around);
     var aroundOffset = around.offset();
@@ -857,17 +934,6 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     $(document).off("input keyup cut paste", maybeChange);
     $(document).off("focusin", focus);
     $(document).off("focusout", blur);
-  });
-
-  session.hub.on("hello", function (msg) {
-    if (msg.sameUrl) {
-      setTimeout(function () {
-	sendInit();
-        if (lastFocus) {
-          session.send({type: "form-focus", element: elementFinder.elementLocation(lastFocus)});
-        }
-      });
-    }
   });
 
   return forms;
