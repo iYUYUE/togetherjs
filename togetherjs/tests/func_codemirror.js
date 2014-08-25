@@ -37,17 +37,7 @@ print(editor.getValue());
 // =SECTION Setup peer
 
 Test.waitMessage("form-init");
-Test.incoming({
-  type: "hello",
-  clientId: "faker",
-  url: location.href.replace(/\#.*/, ""),
-  urlHash: "",
-  name: "Faker",
-  avatar: TogetherJS.baseUrl + "/togetherjs/images/robot-avatar.png",
-  color: "#ff0000",
-  title: document.title,
-  rtcSupported: false
-});
+Test.newPeer({id:"fakerhello"});
 
 /* =>
 
@@ -55,7 +45,10 @@ send: hello-back...
 send: form-init
   authority: [...],
   clientId: "me",
-  requester: "faker",
+  requester: [
+    "faker",
+    "fakerhello"
+  ],
   "server-echo": true,
   updates: [
     {

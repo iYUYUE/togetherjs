@@ -124,7 +124,8 @@ Test.newPeer = function (options) {
     url: options.url || location.href.replace(/#.*/, ""),
     urlHash: options.urlHash || "",
     title: document.title,
-    rtcSupported: false
+    rtcSupported: false,
+    id: options.id || "helloid"
   };
   Test.incoming(msg);
 };

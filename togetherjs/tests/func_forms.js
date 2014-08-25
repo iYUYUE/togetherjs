@@ -152,17 +152,7 @@ Test.viewSend.once("form-init", function(msg) {
   myAuthority = msg.authority;
 });
 Test.waitMessage("form-focus");
-Test.incoming({
-  type: "hello",
-  clientId: "faker",
-  url: location.href.replace(/\#.*/, ""),
-  urlHash: "",
-  name: "Faker",
-  avatar: TogetherJS.baseUrl + "/togetherjs/images/robot-avatar.png",
-  color: "#ff0000",
-  title: document.title,
-  rtcSupported: false
-});
+Test.newPeer();
 // Note that the client will ignore this update, until it hears
 // its own form-init echoed back.  This ensures that the peer
 // doesn't initialize to a stale state.
@@ -186,7 +176,10 @@ send: hello-back...
 send: form-init
   authority: [...],
   clientId: "me",
-  requester: "faker",
+  requester: [
+    "faker",
+    "helloid"
+  ],
   "server-echo": true,
   updates: [
     {
@@ -222,7 +215,7 @@ selected 3 - 4
 Test.incoming({
   clientId: "me",
   type: "form-init",
-  requester: "faker",
+  requester: ["faker","helloid"],
   authority: myAuthority,
   "sever-echo": true,
   element: "#textarea",

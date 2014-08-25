@@ -661,8 +661,8 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     return 0;
   }
 
-  function sendInit(requesterId) {
-    if ( session.clientId === requesterId ) {
+  function sendInit(clientId, helloId) {
+    if ( session.clientId === clientId ) {
       // oh! this was me asking!  nevermind.
       return;
     }
@@ -670,7 +670,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     var msg = {
       type: "form-init",
       "server-echo": true,
-      requester: requesterId,
+      requester: [clientId, helloId],
       authority: authority || session.timestamp,
       updates: []
     };
@@ -764,7 +764,8 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     // this interval.  Otherwise the peer could init to a state which
     // no longer matched the latest shared state of the other peers.
     if (deferUpdate.length > 0 &&
-        deferUpdate[0].requester === msg.requester &&
+        deferUpdate[0].requester[0] === msg.requester[0] &&
+        deferUpdate[0].requester[1] === msg.requester[1] &&
         compareAuthority(deferUpdate[0].authority) === 0) {
       deferUpdate.shift();
     }
@@ -782,7 +783,7 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     // handed out by the server (so it is not subject to the whims of
     // client-side timekeeping) in the "init-connection" message.
 
-    if ( msg.requester !== session.clientId ) {
+    if ( msg.requester[0] !== session.clientId ) {
       // I'm already sync'ed up, ignore this.
       return;
     }
@@ -885,12 +886,20 @@ define(["jquery", "util", "session", "elementFinder", "eventMaker", "templating"
     }
   });
 
+  session.on("prepare-hello", function(msg) {
+    // allow us to track form-inits sent in response to this particular
+    // hello.
+    if (msg.type === 'hello') {
+      msg.id = util.generateId();
+    }
+  });
+
   session.hub.on("hello", function (msg) {
     if (msg.sameUrl) {
       // the init message is sent atomically with the receipt of the 'hello'
       // so that all peers are guaranteed to send an init with the same shared
       // state.
-      sendInit(msg.clientId);
+      sendInit(msg.clientId, msg.id);
       // letting the new peer know about our focus is idempotent,
       // can happen later.
       setTimeout(function() {
