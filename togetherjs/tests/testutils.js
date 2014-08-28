@@ -165,7 +165,15 @@ Test.startTogetherJS = function () {
     Test.viewSend();
     session.once("ui-ready", function () {
       session.clientId = "me";
-      def.resolve("TogetherJS started");
+      // wait for init-connection to be received
+      var check = function() {
+	if (session.timestamp !== null) {
+	  def.resolve("TogetherJS started");
+	} else {
+	  setTimeout(check, 100);
+	}
+      };
+      check();
     });
     TogetherJS.startup._launch = true;
     TogetherJS();
