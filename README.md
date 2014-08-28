@@ -1,5 +1,6 @@
 TogetherJS - Surprisingly easy collaboration
 ============================================
+[![Sauce Test Status](https://saucelabs.com/browser-matrix/cscott-togetherjs.svg)](https://saucelabs.com/u/cscott-togetherjs)
 
 What is TogetherJS?
 -----------------

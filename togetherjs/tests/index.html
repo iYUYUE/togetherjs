@@ -8,6 +8,49 @@
       // This keeps TogetherJS from auto-starting:
       sessionStorage.removeItem("togetherjs-session.status");
       sessionStorage.removeItem("togetherjs-session.peerCache");
+      // This reports test results to sauce labs
+      window.doctestReporterHook = {
+        _results: { passed: 0, failed: 0, total: 0, duration: 0, tests: [] },
+        _start: Date.now(),
+        _lastTest: Date.now(),
+        finish: function() {
+          this._results.total = this._results.passed + this._results.failed;
+          this._results.duration = Date.now() - this._start;
+          // Check size of test results, sauce is unhappy otherwise
+          var MAXSIZE = 16384;
+          if (JSON.stringify(this._results).length > MAXSIZE) {
+            this._results.tests.map(function(t) {
+              if (t.result) {
+                t.message = "<trimmed>";
+              }
+            });
+          }
+          window.global_test_results = this._results;
+        },
+        _addTest: function(passed, example, got) {
+          var duration = Date.now() - this._lastTest;
+          this._lastTest = Date.now();
+          var message = (
+              "Test:\n" + example.expr +
+              "\nExpected:\n" + example.expected +
+              "\nGot:\n" + got
+          );
+          this._results.tests.push({
+            name: example.textSummary(),
+            result: passed,
+            duration: duration,
+            message: message
+          });
+        },
+        reportSuccess: function(example, got) {
+          this._results.passed++;
+          this._addTest(true, example, got);
+        },
+        reportFailure: function(example, got) {
+          this._results.failed++;
+          this._addTest(false, example, got);
+        }
+      };
     </script>
     <script src="../../togetherjs.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>

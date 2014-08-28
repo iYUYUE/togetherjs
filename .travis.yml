@@ -2,5 +2,15 @@ language: node_js
 node_js:
   - "0.10"
 before_install:
- - npm install -g npm
- - npm install -g grunt-cli
+  - npm install -g npm
+  - npm install -g grunt-cli
+script:
+  - npm test
+  - npm run sauce
+addons:
+  sauce_connect: true
+env:
+  global:
+  - secure: X9DkDSen+x8M/sYQhWfUvtet58r+g7qLR+Swe1eDECvvcGRXu7YSGis67/LFYCaLmLPmOrsmnEm/di67D/SylHQ4wuc9yNNmlk/I4P/ZBSS8yvaZR4pLkfxJo1hfzXY0tSnaj7XRbC7rjnf6Issme4vykXDSOuibZb5H7CSxqEg=
+  - secure: JZvqahZSOJ7tCqgUTRQcahfez9brp6vn/SprmVyOpRfs1oE09F/km83tEn3BBcBLt3QG1bMxvszX8vJXr6mKo2MZZMMnQ0J+to1J1XUkTvyYbFaoNDrhqRFzIX8tANoTCkA+rhqBk73qT+GRtijBJAxiriRDWTaUkTBYOE/oGXQ=
+  - SAUCE_HAS_TUNNEL=true

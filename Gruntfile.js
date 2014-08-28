@@ -59,6 +59,25 @@ module.exports = function (grunt) {
     });
   }
 
+  // helper: find a free port (based on the freeport npm package)
+  function freeport(suggestion, cb) {
+    var server = require('net').createServer();
+    suggestion = suggestion || 0;
+    server.on('listening', function() {
+      var port = server.address().port;
+      server.close(function() { cb(null, port); });
+    }).on('error', function(e) {
+      if (e.code == 'EADDRINUSE' && suggestion !== 0) {
+        suggestion = 0;
+        server.close();
+        server.listen(suggestion, '127.0.0.1');
+      } else {
+        server.close();
+        cb(e);
+      }
+    });
+    server.listen(suggestion, '127.0.0.1');
+  }
 
   var libs = [];
   grunt.file.expand(
@@ -74,6 +93,10 @@ module.exports = function (grunt) {
     langs.push(lang);
     libs.push("templates-" + lang);
   });
+
+  var doctests = grunt.file.expand({
+    cwd:"togetherjs/tests/"
+  }, "test_*.js", "func_*.js", "interactive.js", "!test_ot.js");
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
@@ -172,10 +195,42 @@ module.exports = function (grunt) {
       }
     },
 
-    'phantom-tests': grunt.file.expand({
-      cwd:"togetherjs/tests/"
-    }, "test_*.js", "func_*.js", "interactive.js", "!test_ot.js").
-    reduce(function(o, k) { o[k] = {}; return o; }, {})
+    'phantom-tests': doctests.reduce(function(o, k) { o[k] = {}; return o; }, {}),
+    'sauce-tests': doctests.reduce(function(o, k) {
+      // websockets don't work with sauce connect :(
+      if (!/^test_/.test(k)) { return o; }
+      o[k] = {}; return o; }, {}),
+
+    'saucelabs-custom': {
+      all: {
+        options: {
+          //urls: ['www.example.com/qunitTests', 'www.example.com/mochaTests'],
+          build: process.env.TRAVIS_BUILD_NUMBER,
+          tunneled: !process.env.SAUCE_HAS_TUNNEL,
+          identifier: process.env.TRAVIS_JOB_NUMBER,
+          sauceConfig: {
+            'tunnel-identifier': process.env.TRAVIS_JOB_NUMBER
+          },
+          browsers: grunt.option("quick") ?
+            [{ browserName: 'googlechrome', platform: 'linux' }] :
+            [
+              { browserName: 'firefox', platform: 'linux', version: '15'},
+              { browserName: 'firefox', platform: 'XP' },
+              { browserName: 'firefox', platform: 'linux' },
+              { browserName: 'firefox', platform: 'OS X 10.9' },
+              { browserName: 'googlechrome', platform: 'XP' },
+              { browserName: 'googlechrome', platform: 'linux' },
+              { browserName: 'googlechrome', platform: 'OS X 10.9' },
+              //{ browserName: 'internet explorer', platform: 'XP' },
+              { browserName: 'internet explorer', platform: 'VISTA' },
+              { browserName: 'internet explorer', platform: 'WIN8' },
+              //{ browserName: 'safari', platform: 'OS X 10.6' },
+              { browserName: 'safari', platform: 'OS X 10.8' },
+              { browserName: 'safari', platform: 'OS X 10.9' },
+            ]
+        }
+      }
+    }
 
   });
 
@@ -667,9 +722,8 @@ module.exports = function (grunt) {
     function() {
       var done = this.async();
       // find unused ports for web server and hub
-      var freeport = require("freeport");
-      freeport(function(err1, hubPort) {
-        freeport(function(err2, webPort) {
+      freeport(8001, function(err1, webPort) {
+        freeport(8003, function(err2, hubPort) {
           if (err1 || err2) { return done(err1 || err2); }
 
           // build togetherjs using these default ports
@@ -781,6 +835,32 @@ module.exports = function (grunt) {
         done();
       }
     });
+  });
+
+  // Use Sauce Labs to run our tests in a bunch of different browsers
+  grunt.loadNpmTasks('grunt-saucelabs');
+  grunt.registerTask("sauce", "Run jdoctest test suite in sauce labs", ["phantom-setup", "sauce-tests"]);
+  grunt.registerMultiTask("sauce-tests", function() {
+    grunt.task.requires('phantom-setup');
+    var url = grunt.option('base-url') +
+      "togetherjs/tests/index.html?name=" + this.target;
+    grunt.verbose.writeln("Launching test at: "+url);
+    var testname = this.target;
+    if (process.env.TRAVIS_PULL_REQUEST &&
+        process.env.TRAVIS_PULL_REQUEST !== 'false') {
+      testname += ' (PR '+process.env.TRAVIS_PULL_REQUEST+')';
+    }
+    if (process.env.TRAVIS_BRANCH &&
+        process.env.TRAVIS_BRANCH !== 'false') {
+      testname += ' (branch '+process.env.TRAVIS_BRANCH+')';
+    }
+    var options = {};
+    options[this.target] = grunt.config.get(['saucelabs-custom', 'all']);
+    grunt.config.merge({ 'saucelabs-custom': options });
+    options[this.target] = { options: { urls: [url], testname: testname } };
+    grunt.config.merge({ 'saucelabs-custom': options });
+
+    grunt.task.run("saucelabs-custom:"+this.target);
   });
 
   grunt.registerTask('default', 'start');

@@ -38,8 +38,8 @@
     "docco": "~0.6.2",
     "highlight.js": "~7.3.0",
     "optimist": "~0.6.0",
-    "freeport": "~1.0.3",
-    "grunt-lib-phantomjs": "~0.6.0"
+    "grunt-lib-phantomjs": "~0.6.0",
+    "grunt-saucelabs": "~8.3.1"
   },
   "engines": {
     "node": "~0.8",
@@ -47,6 +47,8 @@
   },
   "scripts": {
     "start": "node hub/server.js",
-    "test": "grunt test"
+    "test": "grunt test",
+    "sauce": "grunt sauce",
+    "sauce-quick": "grunt sauce --quick"
   }
 }
