@@ -36,12 +36,14 @@ function ($, util, session, elementFinder) {
     });
   });
 
-  TogetherJS.config.track("youtube", function (track, previous) {
-    if (track && ! previous) {
-      prepareYouTube();
-      // You can enable youtube dynamically, but can't turn it off:
-      TogetherJS.config.close("youtube");
-    }
+  $(function() {
+    TogetherJS.config.track("youtube", function (track, previous) {
+      if (track && ! previous) {
+          prepareYouTube();
+          // You can enable youtube dynamically, but can't turn it off:
+          TogetherJS.config.close("youtube");
+        }
+      });
   });
 
   var youtubeHooked = false;
@@ -232,7 +234,7 @@ function ($, util, session, elementFinder) {
     var currentVideoId = $(iframe).data("currentVideoId");
     if (msg.videoId != currentVideoId) {
       $(iframe).data("currentVideoId", msg.videoId);
-      player.loadVideoById(msg.videoId, msg.playerTime, 'default');
+      player.cueVideoById(msg.videoId, msg.playerTime, 'default');
     } else {
       // if the video is only cued, I do not have to do anything to sync
       if (msg.playerState != 5) {
@@ -245,7 +247,7 @@ function ($, util, session, elementFinder) {
     // load a new video if the host has loaded one
     var iframe = elementFinder.findElement(msg.element);
     var player = $(iframe).data("togetherjs-player");
-    player.loadVideoById(msg.videoId, 0, 'default');
+    player.cueVideoById(msg.videoId, 0, 'default');
     $(iframe).data("currentVideoId", msg.videoId);
 
   });
